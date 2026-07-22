@@ -1,1 +1,1 @@
-<div>Skeleton placeholder view.</div>
+<div>Sync placeholder view.</div>

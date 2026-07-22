@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('skeleton_placeholder', function (Blueprint $table) {
+        Schema::create('laravel_sync_placeholder', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->timestamps();
@@ -19,6 +19,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('skeleton_placeholder');
+        Schema::dropIfExists('laravel_sync_placeholder');
     }
 };

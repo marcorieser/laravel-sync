@@ -1,6 +1,6 @@
 # Contribution Guide
 
-Thank you for considering contributing to :package_name! Please review the following guidelines before submitting a pull request.
+Thank you for considering contributing to Laravel Sync! Please review the following guidelines before submitting a pull request.
 
 For significant changes, please open an issue first so we can discuss the approach.
 

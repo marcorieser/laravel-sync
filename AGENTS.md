@@ -1,15 +1,14 @@
-# Package Skeleton
+# Laravel Sync
 
-This repository is a Laravel package skeleton for building new packages. Preserve idiomatic Laravel package patterns, keep placeholders generic, and prefer the smallest package-specific change that keeps the skeleton useful after configuration.
+This repository is a Laravel package. Keep the package focused, idiomatic, and easy for Laravel developers to install, test, and maintain.
 
 ## Package Conventions
 
 - Use Laravel-native package APIs and the existing service provider shape before adding abstractions.
-- Keep `:author_name`, `:package_name`, `:vendor_slug`, and `:package_slug` placeholders intact until the package is configured.
-- Treat `configure.php` as a one-time bootstrap script: package authors run `composer install` to start configuration automatically, or `composer install --no-scripts` followed by `php configure.php` to run it manually, replacing placeholders, pruning disabled features/tools, optionally creating a GitHub repository, and deleting the script after success.
-- When changing package capabilities or maintenance tooling in the skeleton, keep the configure feature/tool mappings, opt-in non-interactive feature and tool flags, files, Composer metadata, `README_PACKAGE.md`, `AGENTS_PACKAGE.md`, AI guidance, `AGENTS.md` as the skeleton guidance source, `AGENTS_PACKAGE.md` as the package guidance source, and `.agents/skills` as the canonical local skills source in sync. `configure.php` generates package `README.md` and `AGENTS.md`, then links `CLAUDE.md` to `AGENTS.md` and `.claude` to `.agents`.
-- Do not add runtime dependencies, generated files, or extra scaffold unless the package feature needs them.
-- Keep temporary phase scaffold tests out of the final shipped test suite.
+- Keep package names, namespaces, Composer metadata, publish tags, documentation, and examples aligned with `marcorieser/laravel-sync`.
+- Add only the files and dependencies needed for the package behavior being implemented.
+- Prefer explicit Laravel package code over helper abstractions unless the extension point is real.
+- Keep tests focused on observable package behavior through public APIs, service provider wiring, commands, routes, published resources, and documentation promises.
 
 ## Quick Commands
 
@@ -27,4 +26,3 @@ This repository is a Laravel package skeleton for building new packages. Preserv
 - `package-release`: use when preparing changelog, release notes, tags, or GitHub release workflow changes.
 - `package-compatibility`: use when reviewing code, dependencies, or CI against the PHP and Laravel support matrix.
 - `package-generate-skill`: use when updating the bundled Boost skill from the package implementation, README, and examples.
-- `skeleton-development`: use when changing this skeleton repository itself, including placeholders, configure flow, temporary phase tests, or scaffold-wide conventions.

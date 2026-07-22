@@ -2,28 +2,28 @@
 
 declare(strict_types=1);
 
-namespace VendorName\Skeleton\Console\Commands;
+namespace Sync\Sync\Console\Commands;
 
 use Illuminate\Console\Command;
 
-class SkeletonCommand extends Command
+class SyncCommand extends Command
 {
     /**
      * The command signature.
      */
-    protected $signature = 'skeleton:placeholder';
+    protected $signature = 'laravel-sync:placeholder';
 
     /**
      * The command description.
      */
-    protected $description = 'Placeholder Artisan command shipped by the package skeleton.';
+    protected $description = 'Placeholder Artisan command shipped by the package laravel-sync.';
 
     /**
      * Execute the console command.
      */
     public function handle(): int
     {
-        $this->line('Skeleton placeholder command executed.');
+        $this->line('Sync placeholder command executed.');
 
         return self::SUCCESS;
     }

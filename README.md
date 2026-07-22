@@ -1,73 +1,85 @@
-# Laravel Package Skeleton
+<div align="center">
+    <h1>Laravel Sync</h1>
+</div>
 
-A starter template for building beautiful Laravel packages.
+<p align="center">
+    <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://img.shields.io/packagist/v/marcorieser/laravel-sync.svg?style=flat-square" alt="Packagist"></a>
+    <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://img.shields.io/packagist/php-v/marcorieser/laravel-sync.svg?style=flat-square" alt="PHP from Packagist"></a>
+    <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://badge.laravel.cloud/badge/marcorieser/laravel-sync?style=flat" alt="Laravel versions"></a>
+    <a href="https://github.com/marcorieser/laravel-sync/actions"><img alt="GitHub Workflow Status (main)" src="https://img.shields.io/github/actions/workflow/status/marcorieser/laravel-sync/tests.yml?branch=main&label=Tests&style=flat-square"></a>
+    <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://img.shields.io/packagist/dt/marcorieser/laravel-sync.svg?style=flat-square" alt="Total Downloads"></a>
+</p>
 
-## Introduction
+A git-like artisan command to easily sync files and folders between environments
 
-This skeleton provides everything you need to start building a Laravel package. It comes pre-configured with a service provider, testing via Pest, static analysis via Larastan, code formatting via Pint, and a workbench application for end-to-end development — all wired up and ready to go.
+## Installation
 
-An interactive configuration script personalizes the skeleton for your package during `composer install`, setting up your namespace, service provider, and only the features you need.
-
-## Getting Started
-
-Press the **Use this template** button at the top of this repository to create your package, or clone it directly:
-
-```bash
-git clone https://github.com/laravel/package-skeleton.git my-package
-cd my-package
-```
-
-Then, install your dependencies. The interactive configuration script will run automatically:
+You can install the package via Composer:
 
 ```bash
-composer install
+composer require marcorieser/laravel-sync
 ```
 
-If you prefer to configure manually, install without scripts and run the configuration separately:
+You may publish all of the package's resources at once:
 
 ```bash
-composer install --no-scripts
-php configure.php
+php artisan vendor:publish --tag="laravel-sync"
 ```
 
-Once configured, verify everything is working:
+Or, you may publish each resource individually:
+
+### Publishing the Configuration File
 
 ```bash
-composer test
+php artisan vendor:publish --tag="laravel-sync-config"
 ```
 
-You may also boot the included workbench application to test your package end-to-end:
+### Publishing and Running the Migrations
 
 ```bash
-composer serve
+php artisan vendor:publish --tag="laravel-sync-migrations"
+php artisan migrate
 ```
 
-The workbench app will be available at `http://localhost:8000`.
-
-## Non-Interactive Configuration
-
-The configuration script supports non-interactive mode for CI or scripted setups. Pass `--no-interaction` along with any metadata options you'd like to prefill:
+### Publishing the Views
 
 ```bash
-php configure.php --no-interaction --config --routes
+php artisan vendor:publish --tag="laravel-sync-views"
 ```
 
-Non-interactive mode also activates automatically when the `COMPOSER_NO_INTERACTION=1` environment variable is set, when an AI agent is detected, or when standard input is not an interactive terminal.
+### Publishing the Translations
 
-Omitting feature flags includes every package feature; passing specific flags includes only those features. Tools work the same way: omitting tool flags such as `--dependabot` or `--changelog` includes every tool, while passing specific flags includes only those tools.
+```bash
+php artisan vendor:publish --tag="laravel-sync-lang"
+```
 
-Since the default package description is empty, passing `--package-description` is recommended so the generated `composer.json` is ready to publish.
+### Publishing the Public Assets
 
-Non-interactive runs print a single line of JSON describing the result, including the resolved metadata, selected features and tools, and any manual follow-up steps. Invalid metadata options fail with a JSON error before any files are changed.
+```bash
+php artisan vendor:publish --tag="laravel-sync-assets"
+```
 
-During configuration, `README_PACKAGE.md` and `AGENTS_PACKAGE.md` are customized and moved to `README.md` and `AGENTS.md`, replacing the skeleton files. The script also links `CLAUDE.md` to `AGENTS.md` and `.claude` to `.agents` so both agent formats share the same guidance.
+## Usage
 
-## After Setup
+<!-- Add a basic usage example here. -->
 
-A few GitHub settings need your attention after creating your package repository:
+## Changelog
 
-- Review Dependabot pull requests before merging — this skeleton does not include an automatic merge workflow.
-- Create release-note labels: `breaking`, `enhancement`, `bug`, `documentation`, `dependencies`, `maintenance`, `skip-changelog`, and `duplicate`.
-- Review branch protection for `main` — changelog automation requires GitHub Actions to commit to `CHANGELOG.md` after a release.
+Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
 
-No additional repository secrets are required; the included workflows use GitHub's built-in `GITHUB_TOKEN`.
+## Contributing
+
+Thank you for considering contributing to Laravel Sync! Please review our [contributing guide](.github/CONTRIBUTING.md) to get started.
+
+## Security Vulnerabilities
+
+Please review [our security policy](.github/SECURITY.md) on how to report security vulnerabilities.
+
+## Credits
+
+- [Marco Rieser](https://github.com/marcorieser)
+- [All Contributors](../../contributors)
+
+## License
+
+Laravel Sync is open-sourced software licensed under the [MIT license](LICENSE.md).
