@@ -1,0 +1,45 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+
+    /*
+    | Remotes
+    | Define one or more remotes you want to sync with.
+    | Each remote is an array with 'user', 'host', 'root', and optionally 'port' and 'read_only'.
+    | Omit 'user' and 'host' to treat the remote as a local path (no ssh involved).
+    */
+    'remotes' => [
+
+        // 'production' => [
+        //     'user' => 'forge',
+        //     'host' => '104.26.3.113',
+        //     'port' => 22,
+        //     'root' => '/home/forge/example.com',
+        //     'read_only' => env('SYNC_PRODUCTION_READ_ONLY', true),
+        // ],
+
+    ],
+
+    /*
+    | Recipes
+    | Define one or more recipes with the paths you want to sync.
+    | Each recipe is an array of relative paths to your project's root.
+    */
+    'recipes' => [
+
+        // 'assets' => ['storage/app/assets/', 'storage/app/img/'],
+
+    ],
+
+    /*
+    | Options
+    | An array of default rsync options.
+    | You can override these options when executing the command.
+    */
+    'options' => [
+        '--archive',
+    ],
+
+];
