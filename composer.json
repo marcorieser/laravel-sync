@@ -1,0 +1,115 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "vendor-name/skeleton",
+    "description": "A Laravel package skeleton.",
+    "keywords": [
+        "vendor-name",
+        "laravel",
+        "skeleton"
+    ],
+    "homepage": "https://github.com/vendor-name/skeleton",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Author Name",
+            "email": "author@example.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "illuminate/support": "^12.0||^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.9",
+        "laravel/agent-detector": "^2.0",
+        "laravel/chisel": "^0.1",
+        "laravel/pint": "^1.29",
+        "laravel/prompts": "^0.3",
+        "laravel/pao": "^1.0",
+        "orchestra/testbench": "^10.0||^11.0",
+        "pestphp/pest": "^4.6",
+        "pestphp/pest-plugin-laravel": "^4.1",
+        "pestphp/pest-plugin-type-coverage": "^4.0",
+        "phpstan/extension-installer": "^1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "VendorName\\Skeleton\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "VendorName\\Skeleton\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+        }
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "@php configure.php"
+        ],
+        "post-update-cmd": [
+            "@php configure.php"
+        ],
+        "post-autoload-dump": [
+            "@clear",
+            "@prepare"
+        ],
+        "prepare": [
+            "@php vendor/bin/testbench package:discover --ansi"
+        ],
+        "build": [
+            "@php vendor/bin/testbench workbench:build --ansi"
+        ],
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "@build",
+            "@php vendor/bin/testbench serve --ansi"
+        ],
+        "lint": [
+            "vendor/bin/pint --parallel"
+        ],
+        "lint:check": [
+            "vendor/bin/pint --parallel --test"
+        ],
+        "analyse": [
+            "vendor/bin/phpstan analyse"
+        ],
+        "test:types": [
+            "vendor/bin/pest --type-coverage --min=100"
+        ],
+        "test:unit": [
+            "vendor/bin/pest --parallel"
+        ],
+        "test": [
+            "@analyse",
+            "@lint:check",
+            "@test:types",
+            "@test:unit"
+        ],
+        "clear": [
+            "@php vendor/bin/testbench package:purge-skeleton --ansi"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "VendorName\\Skeleton\\SkeletonServiceProvider"
+            ],
+            "aliases": {
+                "Skeleton": "VendorName\\Skeleton\\Facades\\Skeleton"
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
