@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Sync\Sync;
 
 use Illuminate\Support\ServiceProvider;
-use Sync\Sync\Console\Commands\SyncCommand;
+use Sync\Sync\Commands\SyncCommand;
+use Sync\Sync\Commands\SyncCommandsCommand;
+use Sync\Sync\Commands\SyncListCommand;
 
 class SyncServiceProvider extends ServiceProvider
 {
@@ -14,7 +16,7 @@ class SyncServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/laravel-sync.php', 'laravel-sync');
+        $this->mergeConfigFrom(__DIR__.'/../config/sync.php', 'sync');
 
         $this->app->singleton(Sync::class);
     }
@@ -24,38 +26,18 @@ class SyncServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->loadRoutesFrom(__DIR__.'/../routes/laravel-sync.php');
-
-        $this->loadViewsFrom(__DIR__.'/../resources/views', 'laravel-sync');
-
-        $this->loadTranslationsFrom(__DIR__.'/../lang', 'laravel-sync');
-
         if (! $this->app->runningInConsole()) {
             return;
         }
 
         $this->publishes([
-            __DIR__.'/../config/laravel-sync.php' => config_path('laravel-sync.php'),
+            __DIR__.'/../config/sync.php' => config_path('sync.php'),
         ], ['laravel-sync', 'laravel-sync-config']);
-
-        $this->publishes([
-            __DIR__.'/../resources/views' => resource_path('views/vendor/laravel-sync'),
-        ], ['laravel-sync', 'laravel-sync-views']);
-
-        $this->publishes([
-            __DIR__.'/../lang' => $this->app->langPath('vendor/laravel-sync'),
-        ], ['laravel-sync', 'laravel-sync-lang']);
-
-        $this->publishes([
-            __DIR__.'/../public' => public_path('vendor/laravel-sync'),
-        ], ['laravel-sync', 'laravel-sync-assets']);
-
-        $this->publishesMigrations([
-            __DIR__.'/../database/migrations' => database_path('migrations'),
-        ], ['laravel-sync', 'laravel-sync-migrations']);
 
         $this->commands([
             SyncCommand::class,
+            SyncListCommand::class,
+            SyncCommandsCommand::class,
         ]);
     }
 }
