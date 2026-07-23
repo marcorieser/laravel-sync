@@ -14,12 +14,26 @@ use Sync\Sync\Rsync\RsyncOptions;
 class Sync
 {
     /**
+     * @var ?Collection<string, Remote>
+     */
+    private ?Collection $remotes = null;
+
+    /**
+     * @var ?Collection<string, Recipe>
+     */
+    private ?Collection $recipes = null;
+
+    /**
      * Get all remotes defined in the config.
      *
      * @return Collection<string, Remote>
      */
     public function remotes(): Collection
     {
+        if ($this->remotes !== null) {
+            return $this->remotes;
+        }
+
         /** @var array<string, array{user?: string, host?: string, root: string, port?: int, read_only?: bool}> $remotes */
         $remotes = config('sync.remotes', []);
 
@@ -27,7 +41,7 @@ class Sync
             throw SyncException::noRemotesConfigured();
         }
 
-        return collect($remotes)->map(
+        return $this->remotes = collect($remotes)->map(
             fn (array $config, string $name) => Remote::fromArray($name, $config),
         );
     }
@@ -39,6 +53,10 @@ class Sync
      */
     public function recipes(): Collection
     {
+        if ($this->recipes !== null) {
+            return $this->recipes;
+        }
+
         /** @var array<string, array<int, string>> $recipes */
         $recipes = config('sync.recipes', []);
 
@@ -46,7 +64,7 @@ class Sync
             throw SyncException::noRecipesConfigured();
         }
 
-        return collect($recipes)->map(
+        return $this->recipes = collect($recipes)->map(
             fn (array $paths, string $name) => Recipe::fromArray($name, $paths),
         );
     }
