@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Process;
+use Sync\Sync\Rsync\RsyncOptions;
 
 beforeEach(function () {
     Process::fake();
@@ -109,6 +110,38 @@ it('refuses to push to a read-only remote', function () {
 
 it('allows pulling from a read-only remote', function () {
     $this->artisan('sync', ['operation' => 'pull', 'remote' => 'production', 'recipe' => ['assets'], '--no-interaction' => true])
+        ->assertSuccessful();
+
+    Process::assertRanTimes(fn ($process) => true, 1);
+});
+
+it('aborts when the user declines the confirmation prompt', function () {
+    $this->artisan('sync', ['operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--option' => ['--archive']])
+        ->expectsConfirmation('You are about to pull "assets" from "staging". Are you sure?')
+        ->expectsOutputToContain('Sync aborted.')
+        ->assertSuccessful();
+
+    Process::assertNothingRan();
+});
+
+it('syncs every recipe when the user confirms "sync all recipes?"', function () {
+    $this->artisan('sync', ['operation' => 'push', 'remote' => 'staging', '--option' => ['--archive']])
+        ->expectsConfirmation('Sync all recipes?', 'yes')
+        ->expectsConfirmation('You are about to push "assets and env" to "staging". Are you sure?', 'yes')
+        ->assertSuccessful();
+
+    Process::assertRanTimes(fn ($process) => true, 2);
+});
+
+it('prompts for anything missing, interactively, before syncing', function () {
+    $this->artisan('sync')
+        ->expectsChoice('Which operation do you want to perform?', 'push', ['push' => 'Push', 'pull' => 'Pull'])
+        ->expectsChoice('Which remote do you want to sync with?', 'staging', ['production', 'staging'])
+        ->expectsConfirmation('Sync all recipes?')
+        ->expectsChoice('Which recipes do you want to sync?', ['assets'], ['assets', 'env'])
+        ->expectsChoice('Which rsync options do you want to use?', ['--archive'], RsyncOptions::AVAILABLE)
+        ->expectsConfirmation('You are about to push "assets" to "staging". Are you sure?', 'yes')
+        ->expectsOutputToContain('Sync completed successfully.')
         ->assertSuccessful();
 
     Process::assertRanTimes(fn ($process) => true, 1);
