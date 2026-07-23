@@ -128,9 +128,8 @@ class Sync
     public function guardNotSamePath(Remote $remote, Collection $recipes): void
     {
         foreach ($recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique() as $path) {
-            // On Windows, a local remote's `root` (typically base_path()) carries
-            // backslashes that Remote::path() doesn't normalize, only base_path() here
-            // does — so both sides need normalizing before comparing, not just one.
+            // Normalize both sides: Remote::path() always uses '/', but base_path() (and
+            // remote roots typically built from it) use '\' on Windows.
             $remotePath = str_replace('\\', '/', $remote->path($path));
             $localPath = str_replace('\\', '/', base_path($path));
 
