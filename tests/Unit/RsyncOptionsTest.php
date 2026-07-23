@@ -39,3 +39,13 @@ it('reports whether any flag produces visible output', function () {
     expect((new RsyncOptions(['--archive']))->producesOutput())->toBeFalse()
         ->and((new RsyncOptions(['--archive', '--progress']))->producesOutput())->toBeTrue();
 });
+
+it('treats a flag outside the curated list as producing output', function () {
+    expect((new RsyncOptions(['--archive', '--info=progress2']))->producesOutput())->toBeTrue();
+});
+
+it('keeps a literal "0" flag instead of treating it as empty', function () {
+    $options = RsyncOptions::resolve(['--archive', '0'], dry: false, verbose: false);
+
+    expect($options->flags)->toBe(['--archive', '0']);
+});

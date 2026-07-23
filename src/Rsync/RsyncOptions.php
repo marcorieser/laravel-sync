@@ -66,15 +66,24 @@ final readonly class RsyncOptions implements Stringable
             $resolved = $resolved->merge(self::OUTPUT_PRODUCING);
         }
 
-        return new self($resolved->filter()->unique()->values()->all());
+        return new self($resolved->filter(fn (string $flag) => $flag !== '')->unique()->values()->all());
     }
 
     /**
      * Whether any of the resolved flags produce visible output while syncing.
+     *
+     * Flags outside the curated `AVAILABLE` list (e.g. a raw `--option=` override) are of
+     * unknown behavior and assumed to produce output, so streaming isn't silently suppressed.
      */
     public function producesOutput(): bool
     {
-        return array_intersect($this->flags, self::OUTPUT_PRODUCING) !== [];
+        foreach ($this->flags as $flag) {
+            if (! array_key_exists($flag, self::AVAILABLE) || in_array($flag, self::OUTPUT_PRODUCING, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function __toString(): string
