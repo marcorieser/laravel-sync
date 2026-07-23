@@ -49,6 +49,25 @@ final readonly class RsyncCommand implements Arrayable, Stringable
     }
 
     /**
+     * Get this command as an argument list, safe to hand directly to a process runner
+     * without shell interpretation of paths or options.
+     *
+     * @return list<string>
+     */
+    public function toArgs(): array
+    {
+        $ssh = $this->remote->isLocal() ? [] : ['-e', "ssh -p {$this->remote->port}"];
+
+        return [
+            'rsync',
+            ...$ssh,
+            ...$this->options->flags,
+            $this->origin(),
+            $this->target(),
+        ];
+    }
+
+    /**
      * @return array<string, string>
      */
     public function toArray(): array

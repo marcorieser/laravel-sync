@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sync\Sync;
 
 use Closure;
+use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Process;
 use Sync\Sync\Data\Recipe;
@@ -41,11 +42,13 @@ final readonly class PendingSync
 
     /**
      * Run every rsync command, one process at a time.
+     *
+     * @return bool Whether every command completed successfully.
      */
-    public function run(?Closure $onOutput = null): void
+    public function run(?Closure $onOutput = null): bool
     {
-        $this->commands()->each(
-            fn (RsyncCommand $command) => Process::forever()->run((string) $command, $onOutput),
-        );
+        return $this->commands()
+            ->map(fn (RsyncCommand $command) => Process::forever()->run($command->toArgs(), $onOutput))
+            ->every(fn (ProcessResult $result) => $result->successful());
     }
 }

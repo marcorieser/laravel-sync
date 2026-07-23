@@ -37,6 +37,39 @@ it('runs one process per resolved command', function () {
     $pending->run();
 
     Process::assertRanTimes(fn ($process) => true, 2);
-    Process::assertRan(fn ($process) => str_contains($process->command, 'storage/app/assets/'));
-    Process::assertRan(fn ($process) => str_contains($process->command, 'storage/app/img/'));
+    Process::assertRan(fn ($process) => in_array(base_path('storage/app/assets/'), $process->command, true));
+    Process::assertRan(fn ($process) => in_array(base_path('storage/app/img/'), $process->command, true));
+});
+
+it('runs each command as an argument list instead of a shell string', function () {
+    Process::fake();
+
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/'])]);
+    $pending = new PendingSync(Operation::Push, $this->remote, $recipes, new RsyncOptions(['--archive']));
+
+    $pending->run();
+
+    Process::assertRan(fn ($process) => is_array($process->command) && $process->command[0] === 'rsync');
+});
+
+it('returns true when every command succeeds', function () {
+    Process::fake();
+
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/', 'storage/app/img/'])]);
+    $pending = new PendingSync(Operation::Push, $this->remote, $recipes, new RsyncOptions(['--archive']));
+
+    expect($pending->run())->toBeTrue();
+});
+
+it('returns false when any command fails', function () {
+    Process::fake(fn ($process) => in_array(base_path('storage/app/img/'), $process->command, true)
+        ? Process::result(exitCode: 1)
+        : Process::result());
+
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/', 'storage/app/img/'])]);
+    $pending = new PendingSync(Operation::Push, $this->remote, $recipes, new RsyncOptions(['--archive']));
+
+    expect($pending->run())->toBeFalse();
+
+    Process::assertRanTimes(fn ($process) => true, 2);
 });

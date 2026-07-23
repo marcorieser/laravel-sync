@@ -28,7 +28,8 @@ it('runs a dry sync without asking for confirmation', function () {
         ->assertSuccessful();
 
     Process::assertRanTimes(fn ($process) => true, 1);
-    Process::assertRan(fn ($process) => str_contains($process->command, '--dry-run') && str_contains($process->command, 'storage/app/assets/'));
+    Process::assertRan(fn ($process) => in_array('--dry-run', $process->command, true)
+        && in_array(base_path('storage/app/assets/'), $process->command, true));
 });
 
 it('runs a real sync without confirmation when not interactive', function () {
@@ -39,6 +40,16 @@ it('runs a real sync without confirmation when not interactive', function () {
         ->assertSuccessful();
 
     Process::assertRanTimes(fn ($process) => true, 1);
+});
+
+it('fails when the underlying rsync process fails', function () {
+    Process::fake(fn () => Process::result(exitCode: 1));
+
+    $this->artisan('sync', [
+        'operation' => 'push', 'remote' => 'staging', 'recipe' => ['assets'], '--no-interaction' => true,
+    ])
+        ->expectsOutputToContain('Sync failed.')
+        ->assertFailed();
 });
 
 it('syncs every recipe with --all', function () {

@@ -71,3 +71,28 @@ it('uses a dash for the port of a local remote in the array form', function () {
 
     expect($command->toArray()['port'])->toBe('-');
 });
+
+it('builds an argument list without shell interpretation of paths or options', function () {
+    $command = new RsyncCommand(Operation::Push, $this->remote, 'storage/app/assets/', new RsyncOptions(['--archive']));
+
+    expect($command->toArgs())->toBe([
+        'rsync',
+        '-e',
+        'ssh -p 22',
+        '--archive',
+        base_path('storage/app/assets/'),
+        'forge@104.26.3.113:/home/forge/example.com/storage/app/assets/',
+    ]);
+});
+
+it('omits the ssh args from the argument list for a local remote', function () {
+    $remote = Remote::fromArray('local', ['root' => '/var/www/example.com']);
+    $command = new RsyncCommand(Operation::Push, $remote, 'assets/', new RsyncOptions(['--archive']));
+
+    expect($command->toArgs())->toBe([
+        'rsync',
+        '--archive',
+        base_path('assets/'),
+        '/var/www/example.com/assets/',
+    ]);
+});

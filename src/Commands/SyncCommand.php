@@ -51,9 +51,15 @@ class SyncCommand extends Command
 
         $shouldStreamOutput = $dry || $pending->options->producesOutput();
 
-        $pending->run(
+        $successful = $pending->run(
             $shouldStreamOutput ? fn (string $type, string $output) => $this->output->write($output) : null,
         );
+
+        if (! $successful) {
+            $this->error($dry ? 'Dry run failed.' : 'Sync failed.');
+
+            return self::FAILURE;
+        }
 
         $this->info($dry ? 'Dry run completed successfully.' : 'Sync completed successfully.');
 
