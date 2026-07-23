@@ -51,12 +51,13 @@ trait ResolvesSyncInput
     protected function resolvePendingSync(): ?PendingSync
     {
         try {
-            return $this->sync()->for(
-                $this->resolveOperation(),
-                $this->resolveRemote(),
-                $this->resolveRecipes(),
-                $this->resolveOptions(),
-            );
+            $sync = $this->sync();
+            $operation = $this->resolveOperation();
+            $remote = $this->resolveRemote();
+
+            $sync->guardReadOnly($operation, $remote);
+
+            return $sync->for($operation, $remote, $this->resolveRecipes(), $this->resolveOptions());
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
 

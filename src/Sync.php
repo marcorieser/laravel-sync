@@ -74,10 +74,18 @@ class Sync
      */
     public function for(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options): PendingSync
     {
+        $this->guardReadOnly($operation, $remote);
+
+        return new PendingSync($operation, $remote, $recipes, $options);
+    }
+
+    /**
+     * Guard against pushing to a read-only remote.
+     */
+    public function guardReadOnly(Operation $operation, Remote $remote): void
+    {
         if ($operation === Operation::Push && $remote->readOnly) {
             throw SyncException::remoteIsReadOnly($remote->name);
         }
-
-        return new PendingSync($operation, $remote, $recipes, $options);
     }
 }
