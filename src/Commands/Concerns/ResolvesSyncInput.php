@@ -57,7 +57,7 @@ trait ResolvesSyncInput
 
             $sync->guardReadOnly($operation, $remote);
 
-            return $sync->for($operation, $remote, $this->resolveRecipes(), $this->resolveOptions());
+            return new PendingSync($operation, $remote, $this->resolveRecipes(), $this->resolveOptions());
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
 

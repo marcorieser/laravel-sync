@@ -70,6 +70,19 @@ class Sync
     }
 
     /**
+     * Get the default rsync options defined in the config.
+     *
+     * @return array<int, string>
+     */
+    public function defaultOptions(): array
+    {
+        return collect((array) config('sync.options', []))
+            ->filter(fn (mixed $option) => is_string($option))
+            ->values()
+            ->all();
+    }
+
+    /**
      * Get a single remote by name.
      */
     public function remote(string $name): Remote
