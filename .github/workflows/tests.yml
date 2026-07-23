@@ -37,16 +37,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # pcntl is disabled so pest-plugin-type-coverage's Pokio fork runtime falls back to
-      # sync mode; forking has hit a race condition corrupting its shared temp cache file
-      # (vendor/pestphp/pest-plugin-type-coverage/.temp/v3.php) and crashing the Type
-      # Coverage step with a ParseError. Not needed by anything else this package's CI runs
-      # (pest --parallel spawns separate processes, it doesn't use pcntl).
+      # pcntl is disabled (":pcntl", not "-pcntl" — the latter installs a literal "-pcntl"
+      # extension that setup-php normalizes back to pcntl) so pest-plugin-type-coverage's
+      # Pokio fork runtime falls back to sync mode; forking has hit a race condition
+      # corrupting its shared temp cache file (vendor/pestphp/pest-plugin-type-coverage/
+      # .temp/v3.php) and crashing the Type Coverage step with a ParseError. Not needed by
+      # anything else this package's CI runs (pest --parallel spawns separate processes,
+      # it doesn't use pcntl).
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, fileinfo, sqlite, pdo_sqlite, bcmath, intl, -pcntl
+          extensions: dom, curl, libxml, mbstring, zip, fileinfo, sqlite, pdo_sqlite, bcmath, intl, :pcntl
           ini-values: error_reporting=E_ALL
           tools: composer:v2
           coverage: none
