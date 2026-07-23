@@ -59,6 +59,14 @@ it('syncs every recipe with --all', function () {
     Process::assertRanTimes(fn ($process) => true, 2);
 });
 
+it('fails with a friendly error for an invalid operation instead of crashing', function () {
+    $this->artisan('sync', ['operation' => 'sideways', 'remote' => 'staging', 'recipe' => ['assets'], '--no-interaction' => true])
+        ->expectsOutputToContain('Invalid operation "sideways". Expected "push" or "pull".')
+        ->assertFailed();
+
+    Process::assertNothingRan();
+});
+
 it('fails with a friendly error when the operation is missing and cannot be prompted for', function () {
     $this->artisan('sync', ['remote' => 'staging', 'recipe' => ['assets'], '--no-interaction' => true])
         ->expectsOutputToContain('You must specify an operation: "push" or "pull".')

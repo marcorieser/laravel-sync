@@ -14,6 +14,7 @@ use Sync\Sync\Exceptions\SyncException;
 use Sync\Sync\PendingSync;
 use Sync\Sync\Rsync\RsyncOptions;
 use Sync\Sync\Sync;
+use ValueError;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;
@@ -72,7 +73,11 @@ trait ResolvesSyncInput
             throw SyncException::operationRequired();
         }
 
-        return Operation::fromInput($value);
+        try {
+            return Operation::fromInput($value);
+        } catch (ValueError) {
+            throw SyncException::invalidOperation($value);
+        }
     }
 
     protected function resolveRemote(): Remote

@@ -17,6 +17,14 @@ class SyncException extends RuntimeException
     }
 
     /**
+     * The given operation string is not a valid operation.
+     */
+    public static function invalidOperation(string $value): self
+    {
+        return new self(sprintf('Invalid operation "%s". Expected "push" or "pull".', $value));
+    }
+
+    /**
      * No remote was given and none could be prompted for.
      */
     public static function remoteRequired(): self
