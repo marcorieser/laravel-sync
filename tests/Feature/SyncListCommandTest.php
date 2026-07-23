@@ -25,3 +25,9 @@ it('lists the origin, target, options, and port for a pull', function () {
         ->expectsOutputToContain('forge@5.6.7.8:/srv/staging/storage/app/assets/')
         ->assertSuccessful();
 });
+
+it('fails with a friendly error for an unknown remote', function () {
+    $this->artisan('sync:list', ['operation' => 'push', 'remote' => 'unknown', 'recipe' => ['assets'], '--no-interaction' => true])
+        ->expectsOutputToContain('The remote "unknown" is not defined in your config/sync.php file.')
+        ->assertFailed();
+});

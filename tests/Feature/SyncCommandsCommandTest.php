@@ -31,3 +31,9 @@ it('reverses origin and target for a pull', function () {
         ))
         ->assertSuccessful();
 });
+
+it('fails with a friendly error for an unknown remote', function () {
+    $this->artisan('sync:commands', ['operation' => 'push', 'remote' => 'unknown', 'recipe' => ['assets'], '--no-interaction' => true])
+        ->expectsOutputToContain('The remote "unknown" is not defined in your config/sync.php file.')
+        ->assertFailed();
+});
