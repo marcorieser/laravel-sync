@@ -37,6 +37,7 @@ Non-obvious framework behavior relevant to this package's interactive commands (
 - Formatting check: `composer lint:check`
 - Static analysis: `composer analyse`
 - Pest tests: `composer test:unit`
+- Code coverage (min 100%, needs xdebug/pcov): `composer test:coverage`
 - Workbench build: `composer build`
 - Workbench server: `composer serve`
 

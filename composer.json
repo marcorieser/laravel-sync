@@ -75,6 +75,9 @@
         "test:unit": [
             "vendor/bin/pest --parallel"
         ],
+        "test:coverage": [
+            "vendor/bin/pest --coverage --min=100"
+        ],
         "test": [
             "@analyse",
             "@lint:check",
