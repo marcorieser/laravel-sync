@@ -23,13 +23,24 @@ use function Laravel\Prompts\select;
 /**
  * Shared argument/option resolution for the sync commands.
  *
- * Every command using this trait must declare the following in its signature:
- * `{operation?} {remote?} {recipe?*} {--O|option=*} {--D|dry} {--A|all}`.
+ * Every command using this trait must build its `$signature` from `self::SIGNATURE`,
+ * followed by its own `{--D|dry}` option (its description differs per command).
  *
  * @mixin Command
  */
 trait ResolvesSyncInput
 {
+    /**
+     * The `operation`/`remote`/`recipe`/`--option`/`--all` portion shared by every command
+     * signature. Append the command-specific `--D|dry` option after it.
+     */
+    public const string SIGNATURE = '
+        {operation? : The operation to perform (push or pull)}
+        {remote? : The remote to sync with}
+        {recipe?* : The recipes defining the paths to sync}
+        {--O|option=* : Override the default rsync options}
+        {--A|all : Sync all recipes}';
+
     /**
      * Resolve the operation, remote, recipes, and rsync options for this run, and prepare the sync.
      *
