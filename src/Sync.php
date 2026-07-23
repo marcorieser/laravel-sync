@@ -93,15 +93,15 @@ class Sync
     }
 
     /**
-     * Prepare a sync for the given operation, remote, recipes, and options.
+     * Prepare a guarded sync for the given operation, remote, recipes, and options.
      *
      * @param  Collection<int, Recipe>  $recipes
      */
-    public function for(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options): PendingSync
+    public function prepare(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options): PendingSync
     {
         $this->guardReadOnly($operation, $remote);
 
-        return $this->build($operation, $remote, $recipes, $options);
+        return $this->buildUnguarded($operation, $remote, $recipes, $options);
     }
 
     /**
@@ -121,7 +121,7 @@ class Sync
      *
      * @param  Collection<int, Recipe>  $recipes
      */
-    public function build(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options): PendingSync
+    public function buildUnguarded(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options): PendingSync
     {
         return new PendingSync($operation, $remote, $recipes, $options);
     }

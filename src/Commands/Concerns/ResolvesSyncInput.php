@@ -51,13 +51,13 @@ trait ResolvesSyncInput
     protected function resolvePendingSync(): ?PendingSync
     {
         try {
-            $sync = $this->sync();
+            $sync = $this->syncService();
             $operation = $this->resolveOperation();
             $remote = $this->resolveRemote();
 
             $sync->guardReadOnly($operation, $remote);
 
-            return $sync->build($operation, $remote, $this->resolveRecipes(), $this->resolveOptions());
+            return $sync->buildUnguarded($operation, $remote, $this->resolveRecipes(), $this->resolveOptions());
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
 
@@ -65,7 +65,7 @@ trait ResolvesSyncInput
         }
     }
 
-    protected function sync(): Sync
+    protected function syncService(): Sync
     {
         return app(Sync::class);
     }
@@ -94,7 +94,7 @@ trait ResolvesSyncInput
 
     protected function resolveRemote(): Remote
     {
-        $sync = $this->sync();
+        $sync = $this->syncService();
         $value = $this->argument('remote');
 
         if (! is_string($value) && $this->input->isInteractive()) {
@@ -116,7 +116,7 @@ trait ResolvesSyncInput
      */
     protected function resolveRecipes(): Collection
     {
-        $sync = $this->sync();
+        $sync = $this->syncService();
 
         if ($this->option('all')) {
             return $sync->recipes()->values();
@@ -134,6 +134,9 @@ trait ResolvesSyncInput
                 );
         }
 
+        // A purely numeric recipe name (e.g. "2024") comes back as an int here, since PHP
+        // coerces numeric-string array keys to int wherever recipe names pass through an
+        // array key (config, `recipes()->keys()`, `multiselect()`'s selected values).
         $names = collect($names)->map(fn (mixed $name) => (string) $name)->values()->all();
 
         if ($names === []) {
@@ -145,7 +148,7 @@ trait ResolvesSyncInput
 
     protected function resolveOptions(): RsyncOptions
     {
-        $configDefaults = $this->sync()->defaultOptions();
+        $configDefaults = $this->syncService()->defaultOptions();
         $cli = Sync::filterStrings((array) $this->option('option'));
 
         $flags = match (true) {

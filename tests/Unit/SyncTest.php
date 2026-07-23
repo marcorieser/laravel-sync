@@ -74,13 +74,13 @@ it('throws for an unknown recipe', function () {
 it('refuses to push to a read-only remote', function () {
     $sync = app(Sync::class);
 
-    $sync->for(Operation::Push, $sync->remote('production'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+    $sync->prepare(Operation::Push, $sync->remote('production'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 })->throws(SyncException::class, 'The remote "production" is read-only and cannot be pushed to.');
 
 it('allows pulling from a read-only remote', function () {
     $sync = app(Sync::class);
 
-    $pending = $sync->for(Operation::Pull, $sync->remote('production'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+    $pending = $sync->prepare(Operation::Pull, $sync->remote('production'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 
     expect($pending)->toBeInstanceOf(PendingSync::class);
 });
@@ -88,7 +88,7 @@ it('allows pulling from a read-only remote', function () {
 it('allows pushing to a remote that is not read-only', function () {
     $sync = app(Sync::class);
 
-    $pending = $sync->for(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+    $pending = $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 
     expect($pending)->toBeInstanceOf(PendingSync::class);
 });
