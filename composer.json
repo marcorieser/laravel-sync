@@ -82,8 +82,7 @@
             "@analyse",
             "@lint:check",
             "@test:types",
-            "@test:unit",
-            "@test:coverage"
+            "@test:unit"
         ],
         "clear": [
             "@php vendor/bin/testbench package:purge-skeleton --ansi"
