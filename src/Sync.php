@@ -101,28 +101,20 @@ class Sync
     {
         $this->guardReadOnly($operation, $remote);
 
-        return $this->buildUnguarded($operation, $remote, $recipes, $options);
+        return new PendingSync($operation, $remote, $recipes, $options);
     }
 
     /**
      * Guard against pushing to a read-only remote.
+     *
+     * Exposed separately (not just internally by `prepare()`) so a caller resolving its
+     * own input can fail fast before doing further work (e.g. prompting for recipes and
+     * options), without that caller having to bypass `prepare()`'s guard to do so.
      */
     public function guardReadOnly(Operation $operation, Remote $remote): void
     {
         if ($operation === Operation::Push && $remote->readOnly) {
             throw SyncException::remoteIsReadOnly($remote->name);
         }
-    }
-
-    /**
-     * Construct a pending sync, without guarding it. Callers that need to guard before
-     * resolving the rest of their input (e.g. to fail fast ahead of interactive prompts)
-     * should call `guardReadOnly()` explicitly first.
-     *
-     * @param  Collection<int, Recipe>  $recipes
-     */
-    public function buildUnguarded(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options): PendingSync
-    {
-        return new PendingSync($operation, $remote, $recipes, $options);
     }
 }
