@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
 use Sync\Sync\Commands\SyncCommand;
@@ -35,4 +36,15 @@ it('registers the config publish tag', function () {
 
     expect($paths)->toHaveCount(1)
         ->and(array_values($paths))->toBe([config_path('sync.php')]);
+});
+
+it('does not register commands or publishable config outside the console', function () {
+    $app = Mockery::mock(Application::class);
+    $app->shouldReceive('runningInConsole')->once()->andReturnFalse();
+
+    $provider = Mockery::mock(PackageServiceProvider::class, [$app])->makePartial()->shouldAllowMockingProtectedMethods();
+    $provider->shouldNotReceive('publishes');
+    $provider->shouldNotReceive('commands');
+
+    $provider->boot();
 });
