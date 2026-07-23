@@ -128,7 +128,11 @@ class Sync
     public function guardNotSamePath(Remote $remote, Collection $recipes): void
     {
         foreach ($recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique() as $path) {
-            if ($remote->path($path) === base_path($path)) {
+            // Rsync paths (via Remote::path()) always use `/`; base_path() uses the OS
+            // separator, so it must be normalized before comparing on Windows.
+            $localPath = str_replace('\\', '/', base_path($path));
+
+            if ($remote->path($path) === $localPath) {
                 throw SyncException::samePath($path);
             }
         }
