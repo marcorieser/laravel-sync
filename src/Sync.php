@@ -100,6 +100,7 @@ class Sync
     public function prepare(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options): PendingSync
     {
         $this->guardReadOnly($operation, $remote);
+        $this->guardNotSamePath($remote, $recipes);
 
         return new PendingSync($operation, $remote, $recipes, $options);
     }
@@ -115,6 +116,21 @@ class Sync
     {
         if ($operation === Operation::Push && $remote->readOnly) {
             throw SyncException::remoteIsReadOnly($remote->name);
+        }
+    }
+
+    /**
+     * Guard against syncing a recipe path with itself (e.g. a "local" remote whose
+     * root equals the project's base path).
+     *
+     * @param  Collection<int, Recipe>  $recipes
+     */
+    public function guardNotSamePath(Remote $remote, Collection $recipes): void
+    {
+        foreach ($recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique() as $path) {
+            if ($remote->path($path) === base_path($path)) {
+                throw SyncException::samePath($path);
+            }
         }
     }
 }

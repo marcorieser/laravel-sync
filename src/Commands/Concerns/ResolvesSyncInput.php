@@ -57,7 +57,11 @@ trait ResolvesSyncInput
 
             $sync->guardReadOnly($operation, $remote);
 
-            return $sync->prepare($operation, $remote, $this->resolveRecipes(), $this->resolveOptions());
+            $recipes = $this->resolveRecipes();
+
+            $sync->guardNotSamePath($remote, $recipes);
+
+            return $sync->prepare($operation, $remote, $recipes, $this->resolveOptions());
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
 

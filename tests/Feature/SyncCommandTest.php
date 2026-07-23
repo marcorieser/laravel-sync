@@ -118,6 +118,18 @@ it('fails when no recipe is given and --all is not passed', function () {
         ->assertFailed();
 });
 
+it('refuses to sync a path with itself', function () {
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        'here' => ['root' => base_path()],
+    ])]);
+
+    $this->artisan('sync', ['operation' => 'push', 'remote' => 'here', 'recipe' => ['assets'], '--no-interaction' => true])
+        ->expectsOutputToContain('The origin and target path for "storage/app/assets/" are the same. Refusing to sync a path with itself.')
+        ->assertFailed();
+
+    Process::assertNothingRan();
+});
+
 it('refuses to push to a read-only remote', function () {
     $this->artisan('sync', ['operation' => 'push', 'remote' => 'production', 'recipe' => ['assets'], '--no-interaction' => true])
         ->expectsOutputToContain('The remote "production" is read-only and cannot be pushed to.')

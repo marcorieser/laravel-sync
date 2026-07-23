@@ -80,4 +80,12 @@ class SyncException extends RuntimeException
     {
         return new self('You must select at least one recipe, or pass --all to sync every recipe.');
     }
+
+    /**
+     * The resolved local and remote path for a recipe path are identical.
+     */
+    public static function samePath(string $path): self
+    {
+        return new self(sprintf('The origin and target path for "%s" are the same. Refusing to sync a path with itself.', $path));
+    }
 }

@@ -92,3 +92,14 @@ it('allows pushing to a remote that is not read-only', function () {
 
     expect($pending)->toBeInstanceOf(PendingSync::class);
 });
+
+it('refuses to sync a path with itself', function () {
+    config([
+        'sync.remotes' => ['here' => ['root' => base_path()]],
+        'sync.recipes' => ['assets' => ['storage/app/assets/']],
+    ]);
+
+    $sync = app(Sync::class);
+
+    $sync->prepare(Operation::Push, $sync->remote('here'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+})->throws(SyncException::class, 'The origin and target path for "storage/app/assets/" are the same. Refusing to sync a path with itself.');
