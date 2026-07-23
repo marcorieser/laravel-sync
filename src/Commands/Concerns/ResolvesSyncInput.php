@@ -134,7 +134,7 @@ trait ResolvesSyncInput
                 );
         }
 
-        $names = array_values(array_map('strval', $names));
+        $names = collect($names)->map(fn (mixed $name) => (string) $name)->values()->all();
 
         if ($names === []) {
             throw SyncException::noRecipeSelected();
@@ -159,7 +159,7 @@ trait ResolvesSyncInput
         };
 
         return RsyncOptions::resolve(
-            flags: array_values(array_map('strval', $flags)),
+            flags: collect($flags)->map(fn (mixed $flag) => (string) $flag)->values()->all(),
             dry: (bool) $this->option('dry'),
             verbose: $this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE,
         );
