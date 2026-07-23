@@ -87,8 +87,8 @@ trait ResolvesSyncInput
 
         try {
             return Operation::fromInput($value);
-        } catch (ValueError) {
-            throw SyncException::invalidOperation($value);
+        } catch (ValueError $exception) {
+            throw SyncException::invalidOperation($exception);
         }
     }
 

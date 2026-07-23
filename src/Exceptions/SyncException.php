@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sync\Sync\Exceptions;
 
 use RuntimeException;
+use ValueError;
 
 class SyncException extends RuntimeException
 {
@@ -19,9 +20,9 @@ class SyncException extends RuntimeException
     /**
      * The given operation string is not a valid operation.
      */
-    public static function invalidOperation(string $value): self
+    public static function invalidOperation(ValueError $exception): self
     {
-        return new self(sprintf('Invalid operation "%s". Expected "push" or "pull".', $value));
+        return new self($exception->getMessage());
     }
 
     /**
