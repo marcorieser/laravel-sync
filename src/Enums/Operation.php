@@ -23,7 +23,10 @@ enum Operation: string
     }
 
     /**
-     * Resolve an operation from a raw string, throwing a friendly error when invalid.
+     * Resolve an operation from a raw string, throwing when it isn't a known operation.
+     *
+     * The friendly error a user sees is composed one layer up, by
+     * `SyncException::invalidOperation()`.
      */
     public static function fromInput(string $value): self
     {
