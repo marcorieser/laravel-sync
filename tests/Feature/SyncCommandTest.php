@@ -102,6 +102,16 @@ it('fails with a friendly error for an unknown recipe', function () {
         ->assertFailed();
 });
 
+it('fails with a friendly error when no recipes are configured', function () {
+    config(['sync.recipes' => []]);
+
+    $this->artisan('sync', ['operation' => 'push', 'remote' => 'staging', '--all' => true, '--no-interaction' => true])
+        ->expectsOutputToContain('You need to define at least one recipe in your config/sync.php file.')
+        ->assertFailed();
+
+    Process::assertNothingRan();
+});
+
 it('fails when no recipe is given and --all is not passed', function () {
     $this->artisan('sync', ['operation' => 'push', 'remote' => 'staging', '--no-interaction' => true])
         ->expectsOutputToContain('You must select at least one recipe, or pass --all to sync every recipe.')
