@@ -43,7 +43,7 @@ final readonly class RsyncCommand implements Arrayable, Stringable
 
     public function __toString(): string
     {
-        $ssh = $this->remote->isLocal() ? '' : "-e 'ssh -p {$this->remote->port}' ";
+        $ssh = $this->remote->isLocal() ? '' : "-e '{$this->sshFlag()}' ";
 
         return "rsync {$ssh}{$this->options} {$this->origin()} {$this->target()}";
     }
@@ -56,7 +56,7 @@ final readonly class RsyncCommand implements Arrayable, Stringable
      */
     public function toArgs(): array
     {
-        $ssh = $this->remote->isLocal() ? [] : ['-e', "ssh -p {$this->remote->port}"];
+        $ssh = $this->remote->isLocal() ? [] : ['-e', $this->sshFlag()];
 
         return [
             'rsync',
@@ -83,5 +83,13 @@ final readonly class RsyncCommand implements Arrayable, Stringable
     private function localPath(): string
     {
         return base_path($this->path);
+    }
+
+    /**
+     * The `ssh` command used for the `-e` flag, connecting on the remote's port.
+     */
+    private function sshFlag(): string
+    {
+        return "ssh -p {$this->remote->port}";
     }
 }
