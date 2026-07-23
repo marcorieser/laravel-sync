@@ -14,36 +14,24 @@ use Sync\Sync\Rsync\RsyncOptions;
 class Sync
 {
     /**
-     * @var ?Collection<string, Remote>
-     */
-    private ?Collection $remotes = null;
-
-    /**
-     * @var ?Collection<string, Recipe>
-     */
-    private ?Collection $recipes = null;
-
-    /**
      * Get all remotes defined in the config.
      *
      * @return Collection<string, Remote>
      */
     public function remotes(): Collection
     {
-        if ($this->remotes !== null) {
-            return $this->remotes;
-        }
+        return once(function () {
+            /** @var array<string, array{user?: string, host?: string, root: string, port?: int, read_only?: bool}> $remotes */
+            $remotes = config('sync.remotes', []);
 
-        /** @var array<string, array{user?: string, host?: string, root: string, port?: int, read_only?: bool}> $remotes */
-        $remotes = config('sync.remotes', []);
+            if ($remotes === []) {
+                throw SyncException::noRemotesConfigured();
+            }
 
-        if ($remotes === []) {
-            throw SyncException::noRemotesConfigured();
-        }
-
-        return $this->remotes = collect($remotes)->map(
-            fn (array $config, string $name) => Remote::fromArray($name, $config),
-        );
+            return collect($remotes)->map(
+                fn (array $config, string $name) => Remote::fromArray($name, $config),
+            );
+        });
     }
 
     /**
@@ -53,20 +41,18 @@ class Sync
      */
     public function recipes(): Collection
     {
-        if ($this->recipes !== null) {
-            return $this->recipes;
-        }
+        return once(function () {
+            /** @var array<string, array<int, string>> $recipes */
+            $recipes = config('sync.recipes', []);
 
-        /** @var array<string, array<int, string>> $recipes */
-        $recipes = config('sync.recipes', []);
+            if ($recipes === []) {
+                throw SyncException::noRecipesConfigured();
+            }
 
-        if ($recipes === []) {
-            throw SyncException::noRecipesConfigured();
-        }
-
-        return $this->recipes = collect($recipes)->map(
-            fn (array $paths, string $name) => Recipe::fromArray($name, $paths),
-        );
+            return collect($recipes)->map(
+                fn (array $paths, string $name) => Recipe::fromArray($name, $paths),
+            );
+        });
     }
 
     /**
