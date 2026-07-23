@@ -122,7 +122,7 @@ trait ResolvesSyncInput
             return $sync->recipes()->values();
         }
 
-        $names = array_values(array_filter((array) $this->argument('recipe'), 'is_string'));
+        $names = Sync::filterStrings((array) $this->argument('recipe'));
 
         if ($names === [] && $this->input->isInteractive()) {
             $names = confirm(label: 'Sync all recipes?', default: false)
@@ -145,8 +145,8 @@ trait ResolvesSyncInput
 
     protected function resolveOptions(): RsyncOptions
     {
-        $configDefaults = array_values(array_filter((array) config('sync.options', []), 'is_string'));
-        $cli = array_values(array_filter((array) $this->option('option'), 'is_string'));
+        $configDefaults = $this->sync()->defaultOptions();
+        $cli = Sync::filterStrings((array) $this->option('option'));
 
         $flags = match (true) {
             $cli !== [] => $cli,

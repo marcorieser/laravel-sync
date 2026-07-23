@@ -62,10 +62,18 @@ class Sync
      */
     public function defaultOptions(): array
     {
-        return collect((array) config('sync.options', []))
-            ->filter(fn (mixed $option) => is_string($option))
-            ->values()
-            ->all();
+        return once(fn () => self::filterStrings((array) config('sync.options', [])));
+    }
+
+    /**
+     * Filter a mixed array down to its string values, reindexed.
+     *
+     * @param  array<array-key, mixed>  $values
+     * @return array<int, string>
+     */
+    public static function filterStrings(array $values): array
+    {
+        return collect($values)->filter(fn (mixed $value) => is_string($value))->values()->all();
     }
 
     /**
@@ -93,7 +101,7 @@ class Sync
     {
         $this->guardReadOnly($operation, $remote);
 
-        return new PendingSync($operation, $remote, $recipes, $options);
+        return $this->build($operation, $remote, $recipes, $options);
     }
 
     /**
@@ -104,5 +112,17 @@ class Sync
         if ($operation === Operation::Push && $remote->readOnly) {
             throw SyncException::remoteIsReadOnly($remote->name);
         }
+    }
+
+    /**
+     * Construct a pending sync, without guarding it. Callers that need to guard before
+     * resolving the rest of their input (e.g. to fail fast ahead of interactive prompts)
+     * should call `guardReadOnly()` explicitly first.
+     *
+     * @param  Collection<int, Recipe>  $recipes
+     */
+    public function build(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options): PendingSync
+    {
+        return new PendingSync($operation, $remote, $recipes, $options);
     }
 }
