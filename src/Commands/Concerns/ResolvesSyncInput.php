@@ -176,6 +176,9 @@ trait ResolvesSyncInput
     }
 
     /**
+     * Move the config-default flags to the front of the options list, so they're
+     * easiest to spot (and already pre-checked) in the `multiselect()` prompt.
+     *
      * @param  array<int, string>  $configDefaults
      * @return array<string, string>
      */
