@@ -162,7 +162,7 @@ trait ResolvesSyncInput
             $cli !== [] => $cli,
             $this->input->isInteractive() => multiselect(
                 label: 'Which rsync options do you want to use?',
-                options: RsyncOptions::AVAILABLE,
+                options: $this->orderOptionsByDefault($configDefaults),
                 default: $configDefaults,
             ),
             default => $configDefaults,
@@ -173,5 +173,19 @@ trait ResolvesSyncInput
             dry: (bool) $this->option('dry'),
             verbose: $this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE,
         );
+    }
+
+    /**
+     * Move the config-default flags to the front of the options list, so they're
+     * easiest to spot (and already pre-checked) in the `multiselect()` prompt.
+     *
+     * @param  array<int, string>  $configDefaults
+     * @return array<string, string>
+     */
+    private function orderOptionsByDefault(array $configDefaults): array
+    {
+        return collect(RsyncOptions::AVAILABLE)
+            ->sortBy(fn (string $label, string $flag) => in_array($flag, $configDefaults, true) ? 0 : 1)
+            ->all();
     }
 }
