@@ -149,7 +149,10 @@ trait ResolvesSyncInput
     protected function resolveOptions(): RsyncOptions
     {
         $configDefaults = $this->syncService()->defaultOptions();
-        $cli = Sync::filterStrings((array) $this->option('option'));
+        $cli = collect(Sync::filterStrings((array) $this->option('option')))
+            ->filter(fn (string $flag) => $flag !== '')
+            ->values()
+            ->all();
 
         $flags = match (true) {
             $cli !== [] => $cli,

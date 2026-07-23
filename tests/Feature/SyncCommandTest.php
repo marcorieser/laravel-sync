@@ -43,6 +43,14 @@ it('runs a real sync without confirmation when not interactive', function () {
     Process::assertRanTimes(fn ($process) => true, 1);
 });
 
+it('falls back to config default options when --option is passed an empty string', function () {
+    $this->artisan('sync', [
+        'operation' => 'push', 'remote' => 'staging', 'recipe' => ['assets'], '--option' => [''], '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    Process::assertRan(fn ($process) => in_array('--archive', $process->command, true));
+});
+
 it('fails when the underlying rsync process fails', function () {
     Process::fake(fn () => Process::result(exitCode: 1));
 
