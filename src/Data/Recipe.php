@@ -17,6 +17,9 @@ final readonly class Recipe
     /**
      * Hydrate a recipe from its raw config array.
      *
+     * No transformation needed here (unlike `Remote::fromArray()`), but kept for a
+     * symmetric hydration API between the two config DTOs.
+     *
      * @param  array<int, string>  $paths
      */
     public static function fromArray(string $name, array $paths): self
