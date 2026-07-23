@@ -56,6 +56,9 @@ final readonly class Remote
 
     /**
      * Collapse duplicate slashes produced when joining paths.
+     *
+     * Rsync paths (local or remote) always use `/`, regardless of the control
+     * machine's OS, so this can't reuse Laravel's OS-aware `join_paths()`.
      */
     private static function collapseSlashes(string $path): string
     {
