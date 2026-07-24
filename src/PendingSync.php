@@ -81,16 +81,38 @@ final readonly class PendingSync
      */
     public function run(?Closure $onOutput = null): bool
     {
-        $backedUp = $this->backups()
+        if (! $this->runBackup($onOutput)) {
+            return false;
+        }
+
+        return $this->runSync($onOutput);
+    }
+
+    /**
+     * Run the backup only, one process at a time.
+     *
+     * Exposed separately from `run()` so a caller can report a backup failure
+     * distinctly from a sync failure — the two mean very different things for a
+     * feature whose purpose is protecting local files.
+     *
+     * @return bool Whether every backup command completed successfully.
+     */
+    public function runBackup(?Closure $onOutput = null): bool
+    {
+        return $this->backups()
             ->map(fn (BackupCommand $command) => Process::forever()
                 ->path($command->workingDirectory())
                 ->run($command->toArgs(), $onOutput))
             ->every(fn (ProcessResult $result) => $result->successful());
+    }
 
-        if (! $backedUp) {
-            return false;
-        }
-
+    /**
+     * Run every rsync command, one process at a time.
+     *
+     * @return bool Whether every command completed successfully.
+     */
+    public function runSync(?Closure $onOutput = null): bool
+    {
         return $this->commands()
             ->map(fn (RsyncCommand $command) => Process::forever()->run($command->toArgs(), $onOutput))
             ->every(fn (ProcessResult $result) => $result->successful());

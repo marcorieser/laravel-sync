@@ -163,6 +163,22 @@ it('backs up local files before a real pull when --backup is passed', function (
         && $process->path === base_path());
 });
 
+it('reports a distinct error when the backup fails, and never runs the pull', function () {
+    Process::fake(fn ($process) => in_array('--relative', $process->command, true)
+        ? Process::result(exitCode: 1)
+        : Process::result());
+
+    $this->artisan('sync', [
+        'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
+    ])
+        ->expectsOutputToContain('Backing up local files...')
+        ->expectsOutputToContain('Backup failed. Nothing was synced — your local files are untouched.')
+        ->assertFailed();
+
+    Process::assertRanTimes(fn ($process) => true, 1);
+    Process::assertNotRan(fn ($process) => in_array('forge@5.6.7.8:/srv/staging/storage/app/assets/', $process->command, true));
+});
+
 it('does not back up on a dry pull, even with --backup passed', function () {
     $this->artisan('sync', [
         'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--dry' => true, '--no-interaction' => true,

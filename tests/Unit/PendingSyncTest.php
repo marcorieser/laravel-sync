@@ -156,3 +156,39 @@ it('aborts before the pull when the backup fails', function () {
         true,
     ));
 });
+
+it('runs only the backup via runBackup()', function () {
+    Process::fake();
+
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/'])]);
+    $pending = new PendingSync(
+        Operation::Pull,
+        $this->remote,
+        $recipes,
+        new RsyncOptions(['--archive']),
+        new Backup('.sync-backups', '2026-07-24_134530'),
+    );
+
+    expect($pending->runBackup())->toBeTrue();
+
+    Process::assertRanTimes(fn ($process) => true, 1);
+    Process::assertRan(fn ($process) => in_array('--relative', $process->command, true));
+});
+
+it('runs only the sync via runSync(), without backing up', function () {
+    Process::fake();
+
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/'])]);
+    $pending = new PendingSync(
+        Operation::Pull,
+        $this->remote,
+        $recipes,
+        new RsyncOptions(['--archive']),
+        new Backup('.sync-backups', '2026-07-24_134530'),
+    );
+
+    expect($pending->runSync())->toBeTrue();
+
+    Process::assertRanTimes(fn ($process) => true, 1);
+    Process::assertNotRan(fn ($process) => in_array('--relative', $process->command, true));
+});

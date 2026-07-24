@@ -51,16 +51,19 @@ class SyncCommand extends Command
         }
 
         $shouldStreamOutput = $dry || $pending->options->producesOutput();
+        $onOutput = $shouldStreamOutput ? fn (string $type, string $output) => $this->output->write($output) : null;
 
         if ($pending->backup !== null) {
             $this->comment('Backing up local files...');
+
+            if (! $pending->runBackup($onOutput)) {
+                $this->error('Backup failed. Nothing was synced — your local files are untouched.');
+
+                return self::FAILURE;
+            }
         }
 
-        $successful = $pending->run(
-            $shouldStreamOutput ? fn (string $type, string $output) => $this->output->write($output) : null,
-        );
-
-        if (! $successful) {
+        if (! $pending->runSync($onOutput)) {
             $this->error($dry ? 'Dry run failed.' : 'Sync failed.');
 
             return self::FAILURE;
