@@ -124,7 +124,8 @@ it('runs the backup before the sync, then the sync commands', function () {
 
     Process::assertRanTimes(fn ($process) => true, 2);
     Process::assertRan(fn ($process) => in_array('--relative', $process->command, true)
-        && in_array(base_path().'/./storage/app/assets/', $process->command, true));
+        && in_array('storage/app/assets/', $process->command, true)
+        && $process->path === base_path());
     Process::assertRan(fn ($process) => in_array(
         'forge@1.2.3.4:/srv/app/storage/app/assets/',
         $process->command,

@@ -29,12 +29,19 @@ final readonly class BackupCommand implements Arrayable, Stringable
     ) {}
 
     /**
-     * Get the source path, anchored with `/./` so `--relative` recreates only the
-     * recipe path (not the whole project path) under the backup folder.
+     * Get the source path, relative to the project root, so `--relative` recreates
+     * only the recipe path (not the whole absolute source path) under the backup
+     * folder — this only works when the process itself runs with the project root
+     * as its working directory (see `PendingSync::run()`).
+     *
+     * A `/./` anchor in the absolute path would do the same on GNU rsync, but macOS's
+     * bundled `rsync` (openrsync, not GNU rsync) doesn't honor that anchor and
+     * replicates the full absolute path instead — a relative path plus a matching
+     * working directory is the one form both implementations agree on.
      */
     public function origin(): string
     {
-        return base_path().'/./'.$this->path;
+        return $this->path;
     }
 
     /**
@@ -49,7 +56,16 @@ final readonly class BackupCommand implements Arrayable, Stringable
     {
         $options = implode(' ', self::OPTIONS);
 
-        return "rsync {$options} {$this->origin()} {$this->target()}";
+        return "(cd {$this->workingDirectory()} && rsync {$options} {$this->origin()} {$this->target()})";
+    }
+
+    /**
+     * The working directory this command must run from, so its relative `origin()`
+     * resolves against the project root.
+     */
+    public function workingDirectory(): string
+    {
+        return base_path();
     }
 
     /**

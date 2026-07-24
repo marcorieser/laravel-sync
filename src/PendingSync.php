@@ -82,7 +82,9 @@ final readonly class PendingSync
     public function run(?Closure $onOutput = null): bool
     {
         $backedUp = $this->backups()
-            ->map(fn (BackupCommand $command) => Process::forever()->run($command->toArgs(), $onOutput))
+            ->map(fn (BackupCommand $command) => Process::forever()
+                ->path($command->workingDirectory())
+                ->run($command->toArgs(), $onOutput))
             ->every(fn (ProcessResult $result) => $result->successful());
 
         if (! $backedUp) {

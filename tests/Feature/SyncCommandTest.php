@@ -158,8 +158,9 @@ it('backs up local files before a real pull when --backup is passed', function (
 
     Process::assertRanTimes(fn ($process) => true, 2);
     Process::assertRan(fn ($process) => in_array('--relative', $process->command, true)
-        && in_array(base_path().'/./storage/app/assets/', $process->command, true)
-        && in_array(base_path('.sync-backups/2026-07-24_134530').'/', $process->command, true));
+        && in_array('storage/app/assets/', $process->command, true)
+        && in_array(base_path('.sync-backups/2026-07-24_134530').'/', $process->command, true)
+        && $process->path === base_path());
 });
 
 it('does not back up on a dry pull, even with --backup passed', function () {

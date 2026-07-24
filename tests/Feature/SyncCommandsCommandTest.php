@@ -47,7 +47,7 @@ it('prints the backup command before the pull command when --backup is passed', 
         'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
     ])
         ->expectsOutputToContain(sprintf(
-            'rsync --archive --relative %s/./storage/app/assets/ %s/',
+            '(cd %s && rsync --archive --relative storage/app/assets/ %s/)',
             base_path(),
             base_path('.sync-backups/2026-07-24_134530'),
         ))
