@@ -143,7 +143,9 @@ trait ResolvesSyncInput
      *
      * Only ever applies to a real (non-dry) pull, since only a pull overwrites local
      * files. `--backup` decides it outright; otherwise, when pulling interactively,
-     * confirm before the rsync-options prompt so it's asked up front.
+     * confirm before the rsync-options prompt so it's asked up front — but only for
+     * commands that actually run something (see `promptsForBackupConfirmation()`), so
+     * a preview command never implies an action it doesn't take.
      */
     protected function resolveBackup(Operation $operation): bool
     {
@@ -155,8 +157,23 @@ trait ResolvesSyncInput
             return true;
         }
 
-        return $this->input->isInteractive()
+        return $this->promptsForBackupConfirmation()
+            && $this->input->isInteractive()
             && confirm(label: 'Back up the local files before pulling?', default: false);
+    }
+
+    /**
+     * Whether this command should interactively confirm a backup before assuming one.
+     *
+     * `sync` runs what it resolves, so confirming makes sense. `sync:list` and
+     * `sync:commands` only preview and never call `runBackup()`/`runSync()`, so asking
+     * would misleadingly imply an action is about to happen — they override this to
+     * `false`. `--backup` still works explicitly either way; this only gates the
+     * interactive confirm.
+     */
+    protected function promptsForBackupConfirmation(): bool
+    {
+        return true;
     }
 
     protected function resolveOptions(bool $backup): RsyncOptions

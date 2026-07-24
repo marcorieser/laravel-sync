@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Carbon;
+use MarcoRieser\Sync\Rsync\RsyncOptions;
 
 beforeEach(function () {
     config([
@@ -49,5 +50,11 @@ it('lists no backup row for a push, even with --backup passed', function () {
         'operation' => 'push', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
     ])
         ->doesntExpectOutputToContain('.sync-backups')
+        ->assertSuccessful();
+});
+
+it('never asks to back up interactively, since this command only previews', function () {
+    $this->artisan('sync:list', ['operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets']])
+        ->expectsChoice('Which rsync options do you want to use?', ['--archive'], RsyncOptions::AVAILABLE)
         ->assertSuccessful();
 });
