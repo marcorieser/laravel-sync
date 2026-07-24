@@ -25,7 +25,8 @@ class SyncCommand extends Command
         {recipe?* : The recipes defining the paths to sync}
         {--O|option=* : Override the default rsync options}
         {--A|all : Sync all recipes}
-        {--D|dry : Perform a dry run of the sync}';
+        {--D|dry : Perform a dry run of the sync}
+        {--B|backup : Back up local files before a real pull}';
 
     /**
      * The command description.
@@ -50,6 +51,10 @@ class SyncCommand extends Command
         }
 
         $shouldStreamOutput = $dry || $pending->options->producesOutput();
+
+        if ($pending->backup !== null) {
+            $this->comment('Backing up local files...');
+        }
 
         $successful = $pending->run(
             $shouldStreamOutput ? fn (string $type, string $output) => $this->output->write($output) : null,

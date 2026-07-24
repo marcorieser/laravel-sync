@@ -7,6 +7,7 @@ namespace MarcoRieser\Sync\Commands\Concerns;
 use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\Recipe;
 use MarcoRieser\Sync\Data\Remote;
 use MarcoRieser\Sync\Enums\Operation;
@@ -48,7 +49,9 @@ trait ResolvesSyncInput
 
             $sync->guardNotSamePath($remote, $recipes);
 
-            return $sync->prepare($operation, $remote, $recipes, $this->resolveOptions());
+            $backup = $this->resolveBackup($operation) ? Backup::now($sync->backupDir()) : null;
+
+            return $sync->prepare($operation, $remote, $recipes, $this->resolveOptions($backup !== null), $backup);
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
 
@@ -126,7 +129,28 @@ trait ResolvesSyncInput
         return collect($names)->map(fn (string $name) => $sync->recipe($name))->values();
     }
 
-    protected function resolveOptions(): RsyncOptions
+    /**
+     * Resolve whether local files should be backed up before this run.
+     *
+     * Only ever applies to a real (non-dry) pull, since only a pull overwrites local
+     * files. `--backup` decides it outright; otherwise, when pulling interactively,
+     * confirm before the rsync-options prompt so it's asked up front.
+     */
+    protected function resolveBackup(Operation $operation): bool
+    {
+        if ($operation !== Operation::Pull || (bool) $this->option('dry')) {
+            return false;
+        }
+
+        if ($this->option('backup')) {
+            return true;
+        }
+
+        return $this->input->isInteractive()
+            && confirm(label: 'Back up the local files before pulling?', default: false);
+    }
+
+    protected function resolveOptions(bool $backup = false): RsyncOptions
     {
         $configDefaults = $this->syncService()->defaultOptions();
         $verbose = $this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE;
@@ -139,7 +163,7 @@ trait ResolvesSyncInput
             $cli !== [] => $cli,
             $this->input->isInteractive() => multiselect(
                 label: 'Which rsync options do you want to use?',
-                options: $this->orderOptionsByDefault($configDefaults, $verbose),
+                options: $this->orderOptionsByDefault($configDefaults, $verbose, $backup),
                 default: $verbose ? array_diff($configDefaults, RsyncOptions::OUTPUT_PRODUCING) : $configDefaults,
             ),
             default => $configDefaults,
@@ -149,6 +173,7 @@ trait ResolvesSyncInput
             flags: collect($flags)->map(fn (mixed $flag) => (string) $flag)->values()->all(),
             dry: (bool) $this->option('dry'),
             verbose: $verbose,
+            backup: $backup,
         );
     }
 
@@ -180,14 +205,17 @@ trait ResolvesSyncInput
      * When `$verbose` is true, `RsyncOptions::OUTPUT_PRODUCING` flags are dropped from
      * the list entirely — `resolve()` force-adds them regardless of what's picked here,
      * so leaving them pickable would let a user "uncheck" a flag that stays on anyway.
+     * Likewise, when `$backup` is true, `--backup` is dropped — `resolve()` strips it
+     * regardless, since the package's own backup pass already covers it.
      *
      * @param  array<int, string>  $configDefaults
      * @return array<string, string>
      */
-    private function orderOptionsByDefault(array $configDefaults, bool $verbose): array
+    private function orderOptionsByDefault(array $configDefaults, bool $verbose, bool $backup = false): array
     {
         return collect(RsyncOptions::AVAILABLE)
-            ->reject(fn (string $label, string $flag) => $verbose && in_array($flag, RsyncOptions::OUTPUT_PRODUCING, true))
+            ->reject(fn (string $label, string $flag) => ($verbose && in_array($flag, RsyncOptions::OUTPUT_PRODUCING, true))
+                || ($backup && $flag === '--backup'))
             ->sortBy(fn (string $label, string $flag) => in_array($flag, $configDefaults, true) ? 0 : 1)
             ->all();
     }

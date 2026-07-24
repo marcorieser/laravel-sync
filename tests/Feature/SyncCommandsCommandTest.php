@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Carbon;
+
 beforeEach(function () {
     config([
         'sync.remotes' => [
@@ -36,4 +38,30 @@ it('fails with a friendly error for an unknown remote', function () {
     $this->artisan('sync:commands', ['operation' => 'push', 'remote' => 'unknown', 'recipe' => ['assets'], '--no-interaction' => true])
         ->expectsOutputToContain('The remote "unknown" is not defined in your config/sync.php file.')
         ->assertFailed();
+});
+
+it('prints the backup command before the pull command when --backup is passed', function () {
+    $this->travelTo(Carbon::parse('2026-07-24 13:45:30'));
+
+    $this->artisan('sync:commands', [
+        'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
+    ])
+        ->expectsOutputToContain(sprintf(
+            'rsync --archive --relative %s/./storage/app/assets/ %s/',
+            base_path(),
+            base_path('.sync-backups/2026-07-24_134530'),
+        ))
+        ->expectsOutputToContain(sprintf(
+            "rsync -e 'ssh -p 22' --archive forge@5.6.7.8:/srv/staging/storage/app/assets/ %s",
+            base_path('storage/app/assets/'),
+        ))
+        ->assertSuccessful();
+});
+
+it('prints no backup command for a push, even with --backup passed', function () {
+    $this->artisan('sync:commands', [
+        'operation' => 'push', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
+    ])
+        ->doesntExpectOutputToContain('--relative')
+        ->assertSuccessful();
 });
