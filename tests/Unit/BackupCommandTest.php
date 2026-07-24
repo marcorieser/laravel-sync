@@ -61,3 +61,10 @@ it('converts to a human-readable array with absolute paths', function () {
         'port' => '-',
     ]);
 });
+
+it('collapses a trailing slash on the configured backup_dir instead of doubling it', function () {
+    $command = new BackupCommand('.env', new Backup('.sync-backups/', '2026-07-24_134530'));
+
+    expect($command->target())->toBe(base_path('.sync-backups/2026-07-24_134530').'/')
+        ->and($command->toArray()['target'])->toBe(base_path('.sync-backups/2026-07-24_134530/.env'));
+});

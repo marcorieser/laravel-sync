@@ -49,7 +49,9 @@ final readonly class BackupCommand implements Arrayable, Stringable
      */
     public function target(): string
     {
-        return base_path("{$this->backup->dir}/{$this->backup->timestamp}").'/';
+        $dir = rtrim($this->backup->dir, '/');
+
+        return base_path("{$dir}/{$this->backup->timestamp}").'/';
     }
 
     public function __toString(): string
