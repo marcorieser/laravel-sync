@@ -42,4 +42,12 @@ return [
         '--archive',
     ],
 
+    /*
+    | Backup Directory
+    | Relative to your project's root. Before a real pull, when backups are enabled
+    | (--backup / -B), the local files of the selected recipes are copied into a
+    | timestamped folder under this directory.
+    */
+    'backup_dir' => '.sync-backups',
+
 ];
