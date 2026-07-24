@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Collection;
+use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\Recipe;
 use MarcoRieser\Sync\Data\Remote;
 use MarcoRieser\Sync\Enums\Operation;
@@ -103,3 +104,47 @@ it('refuses to sync a path with itself', function () {
 
     $sync->prepare(Operation::Push, $sync->remote('here'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 })->throws(SyncException::class, 'The origin and target path for "storage/app/assets/" are the same. Refusing to sync a path with itself.');
+
+it('refuses to back up when the backup directory is the recipe path itself', function () {
+    $sync = app(Sync::class);
+    $backup = new Backup('storage/app/assets', '2026-07-24_134530');
+
+    $sync->prepare(
+        Operation::Pull,
+        $sync->remote('staging'),
+        collect([$sync->recipe('assets')]),
+        new RsyncOptions([]),
+        $backup,
+    );
+})->throws(
+    SyncException::class,
+    'The backup directory "storage/app/assets" is the same as, or inside, the recipe path "storage/app/assets/". Choose a backup_dir outside the recipe paths you back up.',
+);
+
+it('refuses to back up when the backup directory is nested inside a recipe path', function () {
+    $sync = app(Sync::class);
+    $backup = new Backup('storage/app/assets/.sync-backups', '2026-07-24_134530');
+
+    $sync->prepare(
+        Operation::Pull,
+        $sync->remote('staging'),
+        collect([$sync->recipe('assets')]),
+        new RsyncOptions([]),
+        $backup,
+    );
+})->throws(SyncException::class);
+
+it('allows backing up when the backup directory is outside the recipe paths', function () {
+    $sync = app(Sync::class);
+    $backup = new Backup('.sync-backups', '2026-07-24_134530');
+
+    $pending = $sync->prepare(
+        Operation::Pull,
+        $sync->remote('staging'),
+        collect([$sync->recipe('assets')]),
+        new RsyncOptions([]),
+        $backup,
+    );
+
+    expect($pending)->toBeInstanceOf(PendingSync::class);
+});

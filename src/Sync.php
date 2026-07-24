@@ -111,6 +111,10 @@ class Sync
         $this->guardReadOnly($operation, $remote);
         $this->guardNotSamePath($remote, $recipes);
 
+        if ($backup !== null) {
+            $this->guardBackupNotNested($backup, $recipes);
+        }
+
         return new PendingSync($operation, $remote, $recipes, $options, $backup);
     }
 
@@ -145,6 +149,26 @@ class Sync
 
             if ($remotePath === $localPath) {
                 throw SyncException::samePath($path);
+            }
+        }
+    }
+
+    /**
+     * Guard against the backup directory being the same as, or nested inside, a recipe
+     * path being backed up — otherwise a pull's backup pass would copy the (growing)
+     * backup folder into itself.
+     *
+     * @param  Collection<int, Recipe>  $recipes
+     */
+    public function guardBackupNotNested(Backup $backup, Collection $recipes): void
+    {
+        $backupPath = str_replace('\\', '/', rtrim(base_path($backup->dir), '/'));
+
+        foreach ($recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique() as $path) {
+            $recipePath = str_replace('\\', '/', rtrim(base_path($path), '/'));
+
+            if ($backupPath === $recipePath || str_starts_with($backupPath.'/', $recipePath.'/')) {
+                throw SyncException::backupDirNested($backup->dir, $path);
             }
         }
     }

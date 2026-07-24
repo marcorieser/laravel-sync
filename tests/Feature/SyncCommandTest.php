@@ -181,6 +181,18 @@ it('ignores --backup on a push', function () {
     Process::assertNotRan(fn ($process) => in_array('--relative', $process->command, true));
 });
 
+it('fails with a friendly error when the backup directory is nested inside a recipe path', function () {
+    config(['sync.backup_dir' => 'storage/app/assets/.sync-backups']);
+
+    $this->artisan('sync', [
+        'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
+    ])
+        ->expectsOutputToContain('Choose a backup_dir outside the recipe paths you back up.')
+        ->assertFailed();
+
+    Process::assertNothingRan();
+});
+
 it('strips rsync\'s own backup flags from the pull command when --backup is passed', function () {
     $this->artisan('sync', [
         'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'],

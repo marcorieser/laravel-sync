@@ -51,6 +51,10 @@ trait ResolvesSyncInput
 
             $backup = $this->resolveBackup($operation) ? Backup::now($sync->backupDir()) : null;
 
+            if ($backup !== null) {
+                $sync->guardBackupNotNested($backup, $recipes);
+            }
+
             return $sync->prepare($operation, $remote, $recipes, $this->resolveOptions($backup !== null), $backup);
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
