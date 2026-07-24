@@ -173,7 +173,7 @@ trait ResolvesSyncInput
             $this->input->isInteractive() => multiselect(
                 label: 'Which rsync options do you want to use?',
                 options: $this->orderOptionsByDefault($configDefaults, $verbose, $backup),
-                default: $verbose ? array_diff($configDefaults, RsyncOptions::OUTPUT_PRODUCING) : $configDefaults,
+                default: $this->defaultOptionsForPrompt($configDefaults, $verbose, $backup),
             ),
             default => $configDefaults,
         };
@@ -211,21 +211,49 @@ trait ResolvesSyncInput
      * Move the config-default flags to the front of the options list, so they're
      * easiest to spot (and already pre-checked) in the `multiselect()` prompt.
      *
-     * When `$verbose` is true, `RsyncOptions::OUTPUT_PRODUCING` flags are dropped from
-     * the list entirely — `resolve()` force-adds them regardless of what's picked here,
-     * so leaving them pickable would let a user "uncheck" a flag that stays on anyway.
-     * Likewise, when `$backup` is true, `--backup` is dropped — `resolve()` strips it
-     * regardless, since the package's own backup pass already covers it.
-     *
      * @param  array<int, string>  $configDefaults
      * @return array<string, string>
      */
     private function orderOptionsByDefault(array $configDefaults, bool $verbose, bool $backup): array
     {
         return collect(RsyncOptions::AVAILABLE)
-            ->reject(fn (string $label, string $flag) => ($verbose && in_array($flag, RsyncOptions::OUTPUT_PRODUCING, true))
-                || ($backup && $flag === '--backup'))
+            ->reject(fn (string $label, string $flag) => $this->isExcludedFromOptionsPrompt($flag, $verbose, $backup))
             ->sortBy(fn (string $label, string $flag) => in_array($flag, $configDefaults, true) ? 0 : 1)
             ->all();
+    }
+
+    /**
+     * Filter the config-default flags down to what the `multiselect()` prompt's
+     * default selection should show.
+     *
+     * Must exclude exactly what `orderOptionsByDefault()` excludes from the choices
+     * themselves — a default referencing an option that isn't offered breaks the
+     * prompt when accepted as-is.
+     *
+     * @param  array<int, string>  $configDefaults
+     * @return array<int, string>
+     */
+    private function defaultOptionsForPrompt(array $configDefaults, bool $verbose, bool $backup): array
+    {
+        return collect($configDefaults)
+            ->reject(fn (string $flag) => $this->isExcludedFromOptionsPrompt($flag, $verbose, $backup))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Whether a flag should be excluded from the rsync-options prompt entirely
+     * (both its choices and its default selection).
+     *
+     * When `$verbose` is true, `RsyncOptions::OUTPUT_PRODUCING` flags are excluded —
+     * `resolve()` force-adds them regardless of what's picked here, so leaving them
+     * pickable would let a user "uncheck" a flag that stays on anyway. Likewise, when
+     * `$backup` is true, `--backup` is excluded — `resolve()` strips it regardless,
+     * since the package's own backup pass already covers it.
+     */
+    private function isExcludedFromOptionsPrompt(string $flag, bool $verbose, bool $backup): bool
+    {
+        return ($verbose && in_array($flag, RsyncOptions::OUTPUT_PRODUCING, true))
+            || ($backup && $flag === '--backup');
     }
 }
