@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarcoRieser\Sync\Rsync;
 
 use Illuminate\Contracts\Support\Arrayable;
+use MarcoRieser\Sync\Data\Backup;
 use Stringable;
 
 /**
@@ -24,8 +25,7 @@ final readonly class BackupCommand implements Arrayable, Stringable
 
     public function __construct(
         public string $path,
-        public string $dir,
-        public string $timestamp,
+        public Backup $backup,
     ) {}
 
     /**
@@ -42,7 +42,7 @@ final readonly class BackupCommand implements Arrayable, Stringable
      */
     public function target(): string
     {
-        return base_path("{$this->dir}/{$this->timestamp}").'/';
+        return base_path("{$this->backup->dir}/{$this->backup->timestamp}").'/';
     }
 
     public function __toString(): string
@@ -70,7 +70,7 @@ final readonly class BackupCommand implements Arrayable, Stringable
     {
         return [
             'origin' => base_path($this->path),
-            'target' => base_path("{$this->dir}/{$this->timestamp}/{$this->path}"),
+            'target' => $this->target().$this->path,
             'options' => implode(' ', self::OPTIONS),
             'port' => '-',
         ];

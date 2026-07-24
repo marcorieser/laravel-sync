@@ -55,7 +55,7 @@ final readonly class PendingSync
         }
 
         return $this->resolvedPaths()
-            ->map(fn (string $path) => new BackupCommand($path, $this->backup->dir, $this->backup->timestamp));
+            ->map(fn (string $path) => new BackupCommand($path, $this->backup));
     }
 
     /**
