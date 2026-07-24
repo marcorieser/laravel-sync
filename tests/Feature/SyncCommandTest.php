@@ -176,3 +176,26 @@ it('prompts for anything missing, interactively, before syncing', function () {
 
     Process::assertRanTimes(fn ($process) => true, 1);
 });
+
+it('moves the configured default options to the front of the prompt, in AVAILABLE order', function () {
+    // Config lists "--archive" second, to prove sorting follows AVAILABLE's order, not the config's.
+    config(['sync.options' => ['--verbose', '--archive']]);
+
+    $expectedOrder = [
+        '--archive', '--verbose', '--delete', '--dry-run', '--progress', '--compress', '--stats',
+        '--human-readable', '--itemize-changes', '--update', '--partial', '--delete-after',
+        '--checksum', '--copy-links', '--no-perms', '--no-owner', '--no-group',
+    ];
+    $expectedOptions = collect($expectedOrder)
+        ->mapWithKeys(fn (string $flag) => [$flag => RsyncOptions::AVAILABLE[$flag]])
+        ->all();
+
+    $this->artisan('sync')
+        ->expectsChoice('Which operation do you want to perform?', 'push', ['push' => 'Push', 'pull' => 'Pull'])
+        ->expectsChoice('Which remote do you want to sync with?', 'staging', ['production', 'staging'])
+        ->expectsConfirmation('Sync all recipes?')
+        ->expectsChoice('Which recipes do you want to sync?', ['assets'], ['assets', 'env'])
+        ->expectsChoice('Which rsync options do you want to use?', ['--verbose', '--archive'], $expectedOptions)
+        ->expectsConfirmation('You are about to push "assets" to "staging". Are you sure?', 'yes')
+        ->assertSuccessful();
+});
