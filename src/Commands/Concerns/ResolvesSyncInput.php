@@ -35,6 +35,11 @@ trait ResolvesSyncInput
      * Prompts for anything missing when running interactively. Returns null (after printing
      * a friendly error) when the given input references config that doesn't exist, or when
      * the resolved operation and remote violate a sync guard (e.g. pushing to a read-only remote).
+     *
+     * Guards are run here as each of their inputs becomes available, so a violation fails
+     * before the next prompt instead of after it — by the time every value is known, they've
+     * all already passed, so this builds the `PendingSync` directly instead of going through
+     * `Sync::prepare()`, which would only re-run the same guards a second time.
      */
     protected function resolvePendingSync(): ?PendingSync
     {
@@ -55,7 +60,7 @@ trait ResolvesSyncInput
                 $sync->guardBackupNotNested($backup, $recipes);
             }
 
-            return $sync->prepare($operation, $remote, $recipes, $this->resolveOptions($backup !== null), $backup);
+            return new PendingSync($operation, $remote, $recipes, $this->resolveOptions($backup !== null), $backup);
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
 
