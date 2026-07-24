@@ -129,6 +129,7 @@ trait ResolvesSyncInput
     protected function resolveOptions(): RsyncOptions
     {
         $configDefaults = $this->syncService()->defaultOptions();
+        $verbose = $this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE;
         $cli = collect(Sync::filterStrings((array) $this->option('option')))
             ->filter(fn (string $flag) => $flag !== '')
             ->values()
@@ -138,8 +139,8 @@ trait ResolvesSyncInput
             $cli !== [] => $cli,
             $this->input->isInteractive() => multiselect(
                 label: 'Which rsync options do you want to use?',
-                options: $this->orderOptionsByDefault($configDefaults),
-                default: $configDefaults,
+                options: $this->orderOptionsByDefault($configDefaults, $verbose),
+                default: $verbose ? array_diff($configDefaults, RsyncOptions::OUTPUT_PRODUCING) : $configDefaults,
             ),
             default => $configDefaults,
         };
@@ -147,7 +148,7 @@ trait ResolvesSyncInput
         return RsyncOptions::resolve(
             flags: collect($flags)->map(fn (mixed $flag) => (string) $flag)->values()->all(),
             dry: (bool) $this->option('dry'),
-            verbose: $this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE,
+            verbose: $verbose,
         );
     }
 
@@ -176,12 +177,17 @@ trait ResolvesSyncInput
      * Move the config-default flags to the front of the options list, so they're
      * easiest to spot (and already pre-checked) in the `multiselect()` prompt.
      *
+     * When `$verbose` is true, `RsyncOptions::OUTPUT_PRODUCING` flags are dropped from
+     * the list entirely — `resolve()` force-adds them regardless of what's picked here,
+     * so leaving them pickable would let a user "uncheck" a flag that stays on anyway.
+     *
      * @param  array<int, string>  $configDefaults
      * @return array<string, string>
      */
-    private function orderOptionsByDefault(array $configDefaults): array
+    private function orderOptionsByDefault(array $configDefaults, bool $verbose): array
     {
         return collect(RsyncOptions::AVAILABLE)
+            ->reject(fn (string $label, string $flag) => $verbose && in_array($flag, RsyncOptions::OUTPUT_PRODUCING, true))
             ->sortBy(fn (string $label, string $flag) => in_array($flag, $configDefaults, true) ? 0 : 1)
             ->all();
     }

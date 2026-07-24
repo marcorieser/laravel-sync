@@ -199,3 +199,21 @@ it('moves the configured default options to the front of the prompt, in AVAILABL
         ->expectsConfirmation('You are about to push "assets" to "staging". Are you sure?', 'yes')
         ->assertSuccessful();
 });
+
+it('excludes output-producing options from the prompt when -v is passed, since -v forces them on anyway', function () {
+    // "--progress" is both a configured default and an output-producing flag, to prove it's
+    // dropped from the prompt (and its defaults) rather than merely reordered.
+    config(['sync.options' => ['--archive', '--progress']]);
+
+    $expectedOptions = collect(RsyncOptions::AVAILABLE)
+        ->reject(fn (string $label, string $flag) => in_array($flag, RsyncOptions::OUTPUT_PRODUCING, true))
+        ->all();
+
+    $this->artisan('sync', ['operation' => 'push', 'remote' => 'staging', 'recipe' => ['assets'], '-v' => true])
+        ->expectsChoice('Which rsync options do you want to use?', ['--archive'], $expectedOptions)
+        ->expectsConfirmation('You are about to push "assets" to "staging". Are you sure?', 'yes')
+        ->assertSuccessful();
+
+    // "--progress" still ends up on the actual rsync command, forced on by -v.
+    Process::assertRan(fn ($process) => in_array('--progress', $process->command, true));
+});
