@@ -4,7 +4,7 @@
 
 <p align="center">
     <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://img.shields.io/packagist/v/marcorieser/laravel-sync.svg?style=flat-square" alt="Packagist"></a>
-    <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://img.shields.io/packagist/php-v/marcorieser/laravel-sync.svg?style=flat-square" alt="PHP from Packagist"></a>
+    <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://img.shields.io/packagist/dependency-v/marcorieser/laravel-sync/php.svg?style=flat-square" alt="PHP from Packagist"></a>
     <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://badge.laravel.cloud/badge/marcorieser/laravel-sync?style=flat" alt="Laravel versions"></a>
     <a href="https://github.com/marcorieser/laravel-sync/actions"><img alt="GitHub Workflow Status (main)" src="https://img.shields.io/github/actions/workflow/status/marcorieser/laravel-sync/tests.yml?branch=main&label=Tests&style=flat-square"></a>
     <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://img.shields.io/packagist/dt/marcorieser/laravel-sync.svg?style=flat-square" alt="Total Downloads"></a>
