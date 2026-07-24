@@ -148,3 +148,18 @@ it('allows backing up when the backup directory is outside the recipe paths', fu
 
     expect($pending)->toBeInstanceOf(PendingSync::class);
 });
+
+it('does not guard against a nested backup directory on a push, since a push never backs up', function () {
+    $sync = app(Sync::class);
+    $backup = new Backup('storage/app/assets/.sync-backups', '2026-07-24_134530');
+
+    $pending = $sync->prepare(
+        Operation::Push,
+        $sync->remote('staging'),
+        collect([$sync->recipe('assets')]),
+        new RsyncOptions([]),
+        $backup,
+    );
+
+    expect($pending)->toBeInstanceOf(PendingSync::class);
+});

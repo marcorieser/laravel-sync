@@ -111,7 +111,7 @@ class Sync
         $this->guardReadOnly($operation, $remote);
         $this->guardNotSamePath($remote, $recipes);
 
-        if ($backup !== null) {
+        if ($backup !== null && $operation === Operation::Pull) {
             $this->guardBackupNotNested($backup, $recipes);
         }
 
