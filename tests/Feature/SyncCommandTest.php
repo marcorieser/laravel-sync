@@ -182,7 +182,7 @@ it('moves the configured default options to the front of the prompt, in AVAILABL
     config(['sync.options' => ['--verbose', '--archive']]);
 
     $expectedOrder = [
-        '--archive', '--verbose', '--delete', '--dry-run', '--progress', '--compress', '--stats',
+        '--archive', '--verbose', '--delete', '--progress', '--compress', '--stats',
         '--human-readable', '--itemize-changes', '--update', '--partial', '--delete-after',
         '--checksum', '--copy-links', '--no-perms', '--no-owner', '--no-group',
     ];

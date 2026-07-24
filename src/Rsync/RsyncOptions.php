@@ -10,11 +10,13 @@ final readonly class RsyncOptions implements Stringable
 {
     /**
      * Rsync flags known to the package, with a human-readable label for prompts.
+     *
+     * `--dry-run` is deliberately not here — it's added by `resolve()` when `$dry` is
+     * true, driven by the command's own `-D|--dry` flag, not picked from this list.
      */
     public const array AVAILABLE = [
         '--archive' => 'Archive mode (preserves permissions, timestamps, symlinks, ...)',
         '--delete' => 'Delete files on the target that no longer exist on the source',
-        '--dry-run' => 'Perform a trial run without any changes made',
         '--verbose' => 'Increase verbosity',
         '--progress' => 'Show progress during transfer',
         '--compress' => 'Compress file data during the transfer',

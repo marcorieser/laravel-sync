@@ -119,6 +119,9 @@ Any argument you omit is prompted for interactively (operation, remote, recipes,
 you pass `--no-interaction`, in which case a missing required value fails fast with a clear error instead of
 prompting — and any real (non-dry) sync runs immediately without a confirmation prompt.
 
+Use `--dry` for a dry run, not `--option=--dry-run` — only `--dry` skips the confirmation prompt, forces
+real-time output, and reports it as a dry run instead of a completed sync.
+
 ### Examples
 
 ```bash
