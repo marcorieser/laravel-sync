@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace MarcoRieser\Sync\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Support\Arrayable;
 use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
-use MarcoRieser\Sync\Rsync\BackupCommand;
-use MarcoRieser\Sync\Rsync\RsyncCommand;
 
 use function Laravel\Prompts\table;
 
@@ -42,8 +41,8 @@ class SyncListCommand extends Command
         }
 
         $rows = $pending->backups()
-            ->map(fn (BackupCommand $backup) => array_values($backup->toArray()))
-            ->concat($pending->commands()->map(fn (RsyncCommand $command) => array_values($command->toArray())));
+            ->concat($pending->commands())
+            ->map(fn (Arrayable $command) => array_values($command->toArray()));
 
         table(
             headers: ['Origin', 'Target', 'Options', 'Port'],

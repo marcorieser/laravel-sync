@@ -6,8 +6,7 @@ namespace MarcoRieser\Sync\Commands;
 
 use Illuminate\Console\Command;
 use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
-use MarcoRieser\Sync\Rsync\BackupCommand;
-use MarcoRieser\Sync\Rsync\RsyncCommand;
+use Stringable;
 
 class SyncCommandsCommand extends Command
 {
@@ -39,13 +38,9 @@ class SyncCommandsCommand extends Command
             return self::FAILURE;
         }
 
-        $pending->backups()->each(
-            fn (BackupCommand $backup) => $this->line((string) $backup),
-        );
-
-        $pending->commands()->each(
-            fn (RsyncCommand $command) => $this->line((string) $command),
-        );
+        $pending->backups()
+            ->concat($pending->commands())
+            ->each(fn (Stringable $command) => $this->line((string) $command));
 
         return self::SUCCESS;
     }
