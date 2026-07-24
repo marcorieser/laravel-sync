@@ -1,3 +1,4 @@
+/.agents/scheduled_tasks.lock
 /vendor
 /build
 /.phpunit.cache
