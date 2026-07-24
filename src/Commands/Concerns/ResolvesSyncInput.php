@@ -154,7 +154,7 @@ trait ResolvesSyncInput
             && confirm(label: 'Back up the local files before pulling?', default: false);
     }
 
-    protected function resolveOptions(bool $backup = false): RsyncOptions
+    protected function resolveOptions(bool $backup): RsyncOptions
     {
         $configDefaults = $this->syncService()->defaultOptions();
         $verbose = $this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE;
@@ -215,7 +215,7 @@ trait ResolvesSyncInput
      * @param  array<int, string>  $configDefaults
      * @return array<string, string>
      */
-    private function orderOptionsByDefault(array $configDefaults, bool $verbose, bool $backup = false): array
+    private function orderOptionsByDefault(array $configDefaults, bool $verbose, bool $backup): array
     {
         return collect(RsyncOptions::AVAILABLE)
             ->reject(fn (string $label, string $flag) => ($verbose && in_array($flag, RsyncOptions::OUTPUT_PRODUCING, true))
