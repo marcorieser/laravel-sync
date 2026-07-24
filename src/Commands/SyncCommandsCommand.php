@@ -15,7 +15,12 @@ class SyncCommandsCommand extends Command
     /**
      * The command signature.
      */
-    protected $signature = 'sync:commands'.self::SIGNATURE.'
+    protected $signature = 'sync:commands
+        {operation? : The operation to perform (push or pull)}
+        {remote? : The remote to sync with}
+        {recipe?* : The recipes defining the paths to sync}
+        {--O|option=* : Override the default rsync options}
+        {--A|all : Sync all recipes}
         {--D|dry : Preview the options used for a dry run}';
 
     /**
