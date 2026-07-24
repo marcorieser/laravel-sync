@@ -18,7 +18,8 @@
     ],
     "require": {
         "php": "^8.3",
-        "illuminate/support": "^12.0||^13.0"
+        "illuminate/support": "^12.0||^13.0",
+        "laravel/prompts": "^0.3"
     },
     "require-dev": {
         "larastan/larastan": "^3.9",
@@ -32,12 +33,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Sync\\Sync\\": "src/"
+            "MarcoRieser\\Sync\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Sync\\Sync\\Tests\\": "tests/",
+            "MarcoRieser\\Sync\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/",
             "Workbench\\Database\\Factories\\": "workbench/database/factories/",
             "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
@@ -74,6 +75,9 @@
         "test:unit": [
             "vendor/bin/pest --parallel"
         ],
+        "test:coverage": [
+            "vendor/bin/pest --coverage --min=100"
+        ],
         "test": [
             "@analyse",
             "@lint:check",
@@ -87,10 +91,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Sync\\Sync\\SyncServiceProvider"
+                "MarcoRieser\\Sync\\SyncServiceProvider"
             ],
             "aliases": {
-                "Sync": "Sync\\Sync\\Facades\\Sync"
+                "Sync": "MarcoRieser\\Sync\\Facades\\Sync"
             }
         }
     },

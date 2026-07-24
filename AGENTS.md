@@ -9,6 +9,28 @@ This repository is a Laravel package. Keep the package focused, idiomatic, and e
 - Add only the files and dependencies needed for the package behavior being implemented.
 - Prefer explicit Laravel package code over helper abstractions unless the extension point is real.
 - Keep tests focused on observable package behavior through public APIs, service provider wiring, commands, routes, published resources, and documentation promises.
+- When matching another package's public surface for compatibility (e.g. config shape, CLI flags), treat that package as a feature spec only — read it for behavior, don't port its internal implementation or tests verbatim. Design this package's own idiomatic architecture (typed DTOs, enums, Pest tests) even when the public surface must match exactly.
+
+## Architecture & Decisions
+
+- **Config-compatible with `aerni/sync`:** same config shape (`config/sync.php`, keys `remotes`/`recipes`/`options`, per-remote `user`/`host`/`root`/`port`/`read_only`) and same command surface (`sync`, `sync:list`, `sync:commands` with `-O/--option`, `-D/--dry`, `-A/--all`) — implementation is from-scratch, not a port. Composer package name (`marcorieser/laravel-sync`) and PHP namespace (`MarcoRieser\Sync\`) stay as-is; don't rename without asking first.
+- **Deviates from `aerni/sync`:** no `api.ipify.org` call for same-host detection (a remote with `host`/`user` omitted is treated as local via `Remote::isLocal()`); SSH auth relies entirely on the system's ssh agent/`~/.ssh/config`.
+- **Structure** (`src/`): `Enums/Operation` (Push/Pull), `Data/Remote` + `Data/Recipe` (readonly config DTOs), `Rsync/RsyncOptions` + `Rsync/RsyncCommand` (value objects), `Sync` service + `PendingSync` (builds/runs via the `Process` facade), `Exceptions/SyncException` (domain guard errors), `Commands/Concerns/ResolvesSyncInput` trait shared by the three thin command classes. Prefer extending this structure over adding a new fat command class if more sync behavior is requested.
+- **Command `$signature` strings stay fully inline, on purpose:** every command writes out its whole `$signature` as one literal, even where pieces are identical across commands. Do not factor shared pieces into a constant — the duplication is intentional, not an oversight to clean up.
+
+## Testing Notes
+
+Non-obvious framework behavior relevant to this package's interactive commands (`sync`, `sync:list`, `sync:commands`, all using `laravel/prompts`):
+
+- **Prompts run in fallback mode during unit tests.** Laravel forces `Prompt::fallbackWhen(true)` under `runningUnitTests()`, so `select()`/`confirm()`/`multiselect()` route through `OutputStyle::askQuestion()` — the same mechanism as `$this->ask()`. Script them with `->expectsQuestion()`/`->expectsChoice()`/`->expectsConfirmation()`, not `Laravel\Prompts\Prompt::fake($keys)` raw key simulation.
+- **`--no-interaction` reliably disables prompts in tests.** `$this->artisan($cmd, ['--no-interaction' => true])` goes through Symfony's real `Application::run()`, so `$input->isInteractive()` is correctly set to `false`. Since every prompt call in this package is gated on `$this->input->isInteractive()`, passing `--no-interaction` skips prompts entirely and hits the friendly-error (`SyncException`) fallback path — prefer this style for most feature tests, and reserve `expectsChoice()`/`expectsConfirmation()` for tests that specifically assert the interactive-prompt flow.
+- **`Process::assertRanTimes()` takes a predicate first, not a count.** Signature is `assertRanTimes(Closure|string $callback, int $times = 1)`. `Process::assertRanTimes(2)` silently passes/fails wrong. Use `Process::assertRanTimes(fn ($p) => true, 2)` to assert a total count, or `assertRan()` per expected command.
+
+## Commits
+
+- Split changes into logical commits (by concern), not one giant commit.
+- Keep commit messages terse — short subject, body only when the "why" isn't obvious.
+- Commit only as the user; never add a `Co-Authored-By` or other AI-attribution trailer.
 
 ## Quick Commands
 
@@ -16,6 +38,7 @@ This repository is a Laravel package. Keep the package focused, idiomatic, and e
 - Formatting check: `composer lint:check`
 - Static analysis: `composer analyse`
 - Pest tests: `composer test:unit`
+- Code coverage (min 100%, needs xdebug/pcov): `composer test:coverage`
 - Workbench build: `composer build`
 - Workbench server: `composer serve`
 
