@@ -31,6 +31,7 @@ final readonly class RsyncOptions implements Stringable
         '--no-perms' => 'Do not preserve permissions',
         '--no-owner' => 'Do not preserve owner',
         '--no-group' => 'Do not preserve group',
+        '--backup' => 'Make backups (rsync --backup)',
     ];
 
     /**
@@ -52,11 +53,13 @@ final readonly class RsyncOptions implements Stringable
     ) {}
 
     /**
-     * Resolve the effective rsync options, adding the flags implied by a dry or verbose run.
+     * Resolve the effective rsync options, adding the flags implied by a dry or verbose
+     * run, and stripping rsync's own backup flags when `$backup` is true — they'd be
+     * redundant with (and could conflict with) the package's own full-copy backup pass.
      *
      * @param  array<int, string>  $flags
      */
-    public static function resolve(array $flags, bool $dry, bool $verbose): self
+    public static function resolve(array $flags, bool $dry, bool $verbose, bool $backup = false): self
     {
         $resolved = collect($flags);
 
@@ -66,6 +69,12 @@ final readonly class RsyncOptions implements Stringable
 
         if ($verbose) {
             $resolved = $resolved->merge(self::OUTPUT_PRODUCING);
+        }
+
+        if ($backup) {
+            $resolved = $resolved->reject(
+                fn (string $flag) => $flag === '--backup' || str_starts_with($flag, '--backup-dir'),
+            );
         }
 
         return new self($resolved->filter(fn (string $flag) => $flag !== '')->unique()->values()->all());

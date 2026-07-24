@@ -49,3 +49,20 @@ it('keeps a literal "0" flag instead of treating it as empty', function () {
 
     expect($options->flags)->toBe(['--archive', '0']);
 });
+
+it('strips rsync\'s own backup flags when backup is true', function () {
+    $options = RsyncOptions::resolve(
+        ['--archive', '--backup', '--backup-dir=/tmp/old'],
+        dry: false,
+        verbose: false,
+        backup: true,
+    );
+
+    expect($options->flags)->toBe(['--archive']);
+});
+
+it('keeps rsync\'s own backup flags when backup is false', function () {
+    $options = RsyncOptions::resolve(['--archive', '--backup'], dry: false, verbose: false, backup: false);
+
+    expect($options->flags)->toBe(['--archive', '--backup']);
+});
