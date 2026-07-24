@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarcoRieser\Sync;
 
 use Illuminate\Support\Collection;
+use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\Recipe;
 use MarcoRieser\Sync\Data\Remote;
 use MarcoRieser\Sync\Enums\Operation;
@@ -66,6 +67,14 @@ class Sync
     }
 
     /**
+     * Get the configured backup directory, relative to the project's root.
+     */
+    public function backupDir(): string
+    {
+        return (string) config('sync.backup_dir', '.sync-backups');
+    }
+
+    /**
      * Filter a mixed array down to its string values, reindexed.
      *
      * @param  array<array-key, mixed>  $values
@@ -97,12 +106,12 @@ class Sync
      *
      * @param  Collection<int, Recipe>  $recipes
      */
-    public function prepare(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options): PendingSync
+    public function prepare(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options, ?Backup $backup = null): PendingSync
     {
         $this->guardReadOnly($operation, $remote);
         $this->guardNotSamePath($remote, $recipes);
 
-        return new PendingSync($operation, $remote, $recipes, $options);
+        return new PendingSync($operation, $remote, $recipes, $options, $backup);
     }
 
     /**

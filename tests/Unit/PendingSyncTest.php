@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Process;
+use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\Recipe;
 use MarcoRieser\Sync\Data\Remote;
 use MarcoRieser\Sync\Enums\Operation;
@@ -72,4 +73,85 @@ it('returns false when any command fails', function () {
     expect($pending->run())->toBeFalse();
 
     Process::assertRanTimes(fn ($process) => true, 2);
+});
+
+it('builds no backup commands without a backup', function () {
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/'])]);
+    $pending = new PendingSync(Operation::Pull, $this->remote, $recipes, new RsyncOptions(['--archive']));
+
+    expect($pending->backups())->toBeEmpty();
+});
+
+it('builds no backup commands for a push, even with a backup requested', function () {
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/'])]);
+    $pending = new PendingSync(
+        Operation::Push,
+        $this->remote,
+        $recipes,
+        new RsyncOptions(['--archive']),
+        new Backup('.sync-backups', '2026-07-24_134530'),
+    );
+
+    expect($pending->backups())->toBeEmpty();
+});
+
+it('builds one backup command per unique recipe path on a pull with a backup requested', function () {
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/', 'storage/app/img/'])]);
+    $pending = new PendingSync(
+        Operation::Pull,
+        $this->remote,
+        $recipes,
+        new RsyncOptions(['--archive']),
+        new Backup('.sync-backups', '2026-07-24_134530'),
+    );
+
+    expect($pending->backups()->map->path->all())->toBe(['storage/app/assets/', 'storage/app/img/']);
+});
+
+it('runs the backup before the sync, then the sync commands', function () {
+    Process::fake();
+
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/'])]);
+    $pending = new PendingSync(
+        Operation::Pull,
+        $this->remote,
+        $recipes,
+        new RsyncOptions(['--archive']),
+        new Backup('.sync-backups', '2026-07-24_134530'),
+    );
+
+    expect($pending->run())->toBeTrue();
+
+    Process::assertRanTimes(fn ($process) => true, 2);
+    Process::assertRan(fn ($process) => in_array('--relative', $process->command, true)
+        && in_array(base_path().'/./storage/app/assets/', $process->command, true));
+    Process::assertRan(fn ($process) => in_array(
+        'forge@1.2.3.4:/srv/app/storage/app/assets/',
+        $process->command,
+        true,
+    ));
+});
+
+it('aborts before the pull when the backup fails', function () {
+    Process::fake(fn ($process) => in_array('--relative', $process->command, true)
+        ? Process::result(exitCode: 1)
+        : Process::result());
+
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/'])]);
+    $pending = new PendingSync(
+        Operation::Pull,
+        $this->remote,
+        $recipes,
+        new RsyncOptions(['--archive']),
+        new Backup('.sync-backups', '2026-07-24_134530'),
+    );
+
+    expect($pending->run())->toBeFalse();
+
+    Process::assertRanTimes(fn ($process) => true, 1);
+    Process::assertNotRan(fn ($process) => in_array(
+        'forge@1.2.3.4:/srv/app/storage/app/assets/',
+        $process->command,
+        true,
+    ));
 });
