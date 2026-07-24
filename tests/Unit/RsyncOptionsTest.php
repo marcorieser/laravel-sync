@@ -66,3 +66,21 @@ it('keeps rsync\'s own backup flags when backup is false', function () {
 
     expect($options->flags)->toBe(['--archive', '--backup']);
 });
+
+it('strips rsync\'s short -b backup flag when backup is true', function () {
+    $options = RsyncOptions::resolve(['--archive', '-b'], dry: false, verbose: false, backup: true);
+
+    expect($options->flags)->toBe(['--archive']);
+});
+
+it('strips only the "b" from a short-option cluster, keeping its other flags', function () {
+    $options = RsyncOptions::resolve(['-avhb'], dry: false, verbose: false, backup: true);
+
+    expect($options->flags)->toBe(['-avh']);
+});
+
+it('keeps the short -b flag when backup is false', function () {
+    $options = RsyncOptions::resolve(['-b'], dry: false, verbose: false, backup: false);
+
+    expect($options->flags)->toBe(['-b']);
+});

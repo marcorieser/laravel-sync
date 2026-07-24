@@ -72,12 +72,31 @@ final readonly class RsyncOptions implements Stringable
         }
 
         if ($backup) {
-            $resolved = $resolved->reject(
-                fn (string $flag) => $flag === '--backup' || str_starts_with($flag, '--backup-dir'),
-            );
+            $resolved = $resolved
+                ->reject(fn (string $flag) => $flag === '--backup' || str_starts_with($flag, '--backup-dir'))
+                ->map(fn (string $flag) => self::stripShortBackupFlag($flag))
+                ->filter(fn (?string $flag) => $flag !== null);
         }
 
         return new self($resolved->filter(fn (string $flag) => $flag !== '')->unique()->values()->all());
+    }
+
+    /**
+     * Strip rsync's short `-b` backup flag from a short-option cluster (e.g. `-ab`
+     * becomes `-a`), dropping the flag entirely when `-b` was the only option in it.
+     *
+     * A bare long flag (starting with `--`) is never a short-option cluster and is
+     * returned unchanged.
+     */
+    private static function stripShortBackupFlag(string $flag): ?string
+    {
+        if (str_starts_with($flag, '--') || ! str_starts_with($flag, '-') || ! str_contains($flag, 'b')) {
+            return $flag;
+        }
+
+        $stripped = str_replace('b', '', $flag);
+
+        return $stripped === '-' ? null : $stripped;
     }
 
     /**
