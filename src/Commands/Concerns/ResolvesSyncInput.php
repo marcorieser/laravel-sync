@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Sync\Sync\Commands\Concerns;
 
+use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -76,18 +77,12 @@ trait ResolvesSyncInput
 
     protected function resolveOperation(): Operation
     {
-        $value = $this->argument('operation');
-
-        if (! is_string($value) && $this->input->isInteractive()) {
-            $value = select(
-                label: 'Which operation do you want to perform?',
-                options: Operation::options(),
-            );
-        }
-
-        if (! is_string($value) || $value === '') {
-            throw SyncException::operationRequired();
-        }
+        $value = $this->resolveArgumentOrPrompt(
+            argument: 'operation',
+            label: 'Which operation do you want to perform?',
+            options: Operation::options(),
+            missingException: fn () => SyncException::operationRequired(),
+        );
 
         try {
             return Operation::fromInput($value);
@@ -99,18 +94,13 @@ trait ResolvesSyncInput
     protected function resolveRemote(): Remote
     {
         $sync = $this->syncService();
-        $value = $this->argument('remote');
 
-        if (! is_string($value) && $this->input->isInteractive()) {
-            $value = select(
-                label: 'Which remote do you want to sync with?',
-                options: $sync->remotes()->keys()->all(),
-            );
-        }
-
-        if (! is_string($value) || $value === '') {
-            throw SyncException::remoteRequired();
-        }
+        $value = $this->resolveArgumentOrPrompt(
+            argument: 'remote',
+            label: 'Which remote do you want to sync with?',
+            options: $sync->remotes()->keys()->all(),
+            missingException: fn () => SyncException::remoteRequired(),
+        );
 
         return $sync->remote($value);
     }
@@ -173,6 +163,27 @@ trait ResolvesSyncInput
             dry: (bool) $this->option('dry'),
             verbose: $this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE,
         );
+    }
+
+    /**
+     * Read a command argument, prompting for it interactively when missing,
+     * and fail with `$missingException` when it's still not a non-empty string.
+     *
+     * @param  array<int|string, string>  $options
+     */
+    private function resolveArgumentOrPrompt(string $argument, string $label, array $options, Closure $missingException): string
+    {
+        $value = $this->argument($argument);
+
+        if (! is_string($value) && $this->input->isInteractive()) {
+            $value = select(label: $label, options: $options);
+        }
+
+        if (! is_string($value) || $value === '') {
+            throw $missingException();
+        }
+
+        return $value;
     }
 
     /**
