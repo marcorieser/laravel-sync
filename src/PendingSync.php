@@ -65,10 +65,10 @@ final readonly class PendingSync
      */
     private function resolvedPaths(): Collection
     {
-        return $this->recipes
+        return once(fn () => $this->recipes
             ->flatMap(fn (Recipe $recipe) => $recipe->paths)
             ->unique()
-            ->values();
+            ->values());
     }
 
     /**
