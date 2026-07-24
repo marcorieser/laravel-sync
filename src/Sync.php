@@ -140,7 +140,7 @@ class Sync
      */
     public function guardNotSamePath(Remote $remote, Collection $recipes): void
     {
-        foreach ($recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique() as $path) {
+        foreach (self::resolvedPaths($recipes) as $path) {
             $remotePath = self::normalizePath($remote->path($path));
             $localPath = self::normalizePath(base_path($path));
 
@@ -161,24 +161,37 @@ class Sync
     {
         $backupPath = self::normalizePath(rtrim(base_path($backup->dir), '/'));
 
-        foreach ($recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique() as $path) {
+        foreach (self::resolvedPaths($recipes) as $path) {
             $recipePath = self::normalizePath(rtrim(base_path($path), '/'));
 
-            if ($backupPath === $recipePath || str_starts_with($backupPath.'/', $recipePath.'/')) {
+            if (str_starts_with($backupPath.'/', $recipePath.'/')) {
                 throw SyncException::backupDirNested($backup->dir, $path);
             }
         }
     }
 
     /**
-     * Normalize a path for cross-platform comparison.
+     * Get every recipe path, flattened and de-duplicated.
+     *
+     * @param  Collection<int, Recipe>  $recipes
+     * @return Collection<int, string>
+     */
+    private static function resolvedPaths(Collection $recipes): Collection
+    {
+        return $recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique();
+    }
+
+    /**
+     * Normalize a path for cross-platform, case-insensitive-filesystem-safe comparison.
      *
      * On Windows, a local remote's `root` (typically `base_path()`) carries backslashes
      * that `Remote::path()` doesn't normalize, only `base_path()` does — so any path
-     * compared against another needs normalizing first, not just one side.
+     * compared against another needs normalizing first, not just one side. Case is
+     * folded too: macOS (APFS) and Windows (NTFS) are case-insensitive by default, so
+     * two paths differing only by case can be the same directory on disk.
      */
     private static function normalizePath(string $path): string
     {
-        return str_replace('\\', '/', $path);
+        return strtolower(str_replace('\\', '/', $path));
     }
 }
