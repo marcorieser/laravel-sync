@@ -141,11 +141,8 @@ class Sync
     public function guardNotSamePath(Remote $remote, Collection $recipes): void
     {
         foreach ($recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique() as $path) {
-            // On Windows, a local remote's `root` (typically base_path()) carries
-            // backslashes that Remote::path() doesn't normalize, only base_path() here
-            // does — so both sides need normalizing before comparing, not just one.
-            $remotePath = str_replace('\\', '/', $remote->path($path));
-            $localPath = str_replace('\\', '/', base_path($path));
+            $remotePath = self::normalizePath($remote->path($path));
+            $localPath = self::normalizePath(base_path($path));
 
             if ($remotePath === $localPath) {
                 throw SyncException::samePath($path);
@@ -162,14 +159,26 @@ class Sync
      */
     public function guardBackupNotNested(Backup $backup, Collection $recipes): void
     {
-        $backupPath = str_replace('\\', '/', rtrim(base_path($backup->dir), '/'));
+        $backupPath = self::normalizePath(rtrim(base_path($backup->dir), '/'));
 
         foreach ($recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique() as $path) {
-            $recipePath = str_replace('\\', '/', rtrim(base_path($path), '/'));
+            $recipePath = self::normalizePath(rtrim(base_path($path), '/'));
 
             if ($backupPath === $recipePath || str_starts_with($backupPath.'/', $recipePath.'/')) {
                 throw SyncException::backupDirNested($backup->dir, $path);
             }
         }
+    }
+
+    /**
+     * Normalize a path for cross-platform comparison.
+     *
+     * On Windows, a local remote's `root` (typically `base_path()`) carries backslashes
+     * that `Remote::path()` doesn't normalize, only `base_path()` does — so any path
+     * compared against another needs normalizing first, not just one side.
+     */
+    private static function normalizePath(string $path): string
+    {
+        return str_replace('\\', '/', $path);
     }
 }
