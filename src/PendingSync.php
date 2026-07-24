@@ -36,10 +36,7 @@ final readonly class PendingSync
      */
     public function commands(): Collection
     {
-        return $this->recipes
-            ->flatMap(fn (Recipe $recipe) => $recipe->paths)
-            ->unique()
-            ->values()
+        return $this->resolvedPaths()
             ->map(fn (string $path) => new RsyncCommand($this->operation, $this->remote, $path, $this->options));
     }
 
@@ -57,11 +54,21 @@ final readonly class PendingSync
             return collect();
         }
 
+        return $this->resolvedPaths()
+            ->map(fn (string $path) => new BackupCommand($path, $this->backup->dir, $this->backup->timestamp));
+    }
+
+    /**
+     * Get every recipe path, flattened and de-duplicated.
+     *
+     * @return Collection<int, string>
+     */
+    private function resolvedPaths(): Collection
+    {
         return $this->recipes
             ->flatMap(fn (Recipe $recipe) => $recipe->paths)
             ->unique()
-            ->values()
-            ->map(fn (string $path) => new BackupCommand($path, $this->backup->dir, $this->backup->timestamp));
+            ->values();
     }
 
     /**
