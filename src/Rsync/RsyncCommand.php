@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Sync\Sync\Rsync;
+namespace MarcoRieser\Sync\Rsync;
 
 use Illuminate\Contracts\Support\Arrayable;
+use MarcoRieser\Sync\Data\Remote;
+use MarcoRieser\Sync\Enums\Operation;
 use Stringable;
-use Sync\Sync\Data\Remote;
-use Sync\Sync\Enums\Operation;
 
 /**
  * @implements Arrayable<string, string>

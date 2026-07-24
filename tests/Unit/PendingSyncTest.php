@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Process;
-use Sync\Sync\Data\Recipe;
-use Sync\Sync\Data\Remote;
-use Sync\Sync\Enums\Operation;
-use Sync\Sync\PendingSync;
-use Sync\Sync\Rsync\RsyncOptions;
+use MarcoRieser\Sync\Data\Recipe;
+use MarcoRieser\Sync\Data\Remote;
+use MarcoRieser\Sync\Enums\Operation;
+use MarcoRieser\Sync\PendingSync;
+use MarcoRieser\Sync\Rsync\RsyncOptions;
 
 beforeEach(function () {
     $this->remote = Remote::fromArray('production', ['user' => 'forge', 'host' => '1.2.3.4', 'root' => '/srv/app']);

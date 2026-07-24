@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Sync\Sync\Data\Remote;
+use MarcoRieser\Sync\Data\Remote;
 
 it('hydrates from a full config array', function () {
     $remote = Remote::fromArray('production', [

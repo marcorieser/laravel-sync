@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Process;
-use Sync\Sync\Rsync\RsyncOptions;
+use MarcoRieser\Sync\Rsync\RsyncOptions;
 
 beforeEach(function () {
     Process::fake();

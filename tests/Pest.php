@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Sync\Sync\Tests\TestCase;
+use MarcoRieser\Sync\Tests\TestCase;
 
 // Forces pest-plugin-type-coverage to skip its Pokio fork runtime, which races on a
 // shared cache file and corrupts it (upstream bug: pestphp/pest-plugin-type-coverage#58).

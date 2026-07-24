@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Sync\Sync\Data\Remote;
-use Sync\Sync\Enums\Operation;
-use Sync\Sync\Rsync\RsyncCommand;
-use Sync\Sync\Rsync\RsyncOptions;
+use MarcoRieser\Sync\Data\Remote;
+use MarcoRieser\Sync\Enums\Operation;
+use MarcoRieser\Sync\Rsync\RsyncCommand;
+use MarcoRieser\Sync\Rsync\RsyncOptions;
 
 beforeEach(function () {
     $this->remote = Remote::fromArray('production', [

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Sync\Sync\Commands;
+namespace MarcoRieser\Sync\Commands;
 
 use Illuminate\Console\Command;
-use Sync\Sync\Commands\Concerns\ResolvesSyncInput;
-use Sync\Sync\Rsync\RsyncCommand;
+use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
+use MarcoRieser\Sync\Rsync\RsyncCommand;
 
 use function Laravel\Prompts\table;
 

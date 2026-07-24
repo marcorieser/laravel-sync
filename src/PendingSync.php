@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Sync\Sync;
+namespace MarcoRieser\Sync;
 
 use Closure;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Process;
-use Sync\Sync\Data\Recipe;
-use Sync\Sync\Data\Remote;
-use Sync\Sync\Enums\Operation;
-use Sync\Sync\Rsync\RsyncCommand;
-use Sync\Sync\Rsync\RsyncOptions;
+use MarcoRieser\Sync\Data\Recipe;
+use MarcoRieser\Sync\Data\Remote;
+use MarcoRieser\Sync\Enums\Operation;
+use MarcoRieser\Sync\Rsync\RsyncCommand;
+use MarcoRieser\Sync\Rsync\RsyncOptions;
 
 final readonly class PendingSync
 {

@@ -5,11 +5,11 @@ declare(strict_types=1);
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
-use Sync\Sync\Commands\SyncCommand;
-use Sync\Sync\Commands\SyncCommandsCommand;
-use Sync\Sync\Commands\SyncListCommand;
-use Sync\Sync\Sync;
-use Sync\Sync\SyncServiceProvider as PackageServiceProvider;
+use MarcoRieser\Sync\Commands\SyncCommand;
+use MarcoRieser\Sync\Commands\SyncCommandsCommand;
+use MarcoRieser\Sync\Commands\SyncListCommand;
+use MarcoRieser\Sync\Sync;
+use MarcoRieser\Sync\SyncServiceProvider as PackageServiceProvider;
 
 it('merges the package config', function () {
     expect(config('sync.options'))->toBe(['--archive'])

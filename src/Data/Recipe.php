@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sync\Sync\Data;
+namespace MarcoRieser\Sync\Data;
 
 final readonly class Recipe
 {

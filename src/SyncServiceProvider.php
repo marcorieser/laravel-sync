@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Sync\Sync;
+namespace MarcoRieser\Sync;
 
 use Illuminate\Support\ServiceProvider;
-use Sync\Sync\Commands\SyncCommand;
-use Sync\Sync\Commands\SyncCommandsCommand;
-use Sync\Sync\Commands\SyncListCommand;
+use MarcoRieser\Sync\Commands\SyncCommand;
+use MarcoRieser\Sync\Commands\SyncCommandsCommand;
+use MarcoRieser\Sync\Commands\SyncListCommand;
 
 class SyncServiceProvider extends ServiceProvider
 {

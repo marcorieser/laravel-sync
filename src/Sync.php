@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Sync\Sync;
+namespace MarcoRieser\Sync;
 
 use Illuminate\Support\Collection;
-use Sync\Sync\Data\Recipe;
-use Sync\Sync\Data\Remote;
-use Sync\Sync\Enums\Operation;
-use Sync\Sync\Exceptions\SyncException;
-use Sync\Sync\Rsync\RsyncOptions;
+use MarcoRieser\Sync\Data\Recipe;
+use MarcoRieser\Sync\Data\Remote;
+use MarcoRieser\Sync\Enums\Operation;
+use MarcoRieser\Sync\Exceptions\SyncException;
+use MarcoRieser\Sync\Rsync\RsyncOptions;
 
 class Sync
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Sync\Sync\Enums\Operation;
+use MarcoRieser\Sync\Enums\Operation;
 
 it('resolves push and pull from a valid string', function () {
     expect(Operation::fromInput('push'))->toBe(Operation::Push)

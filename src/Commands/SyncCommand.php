@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Sync\Sync\Commands;
+namespace MarcoRieser\Sync\Commands;
 
 use Illuminate\Console\Command;
-use Sync\Sync\Commands\Concerns\ResolvesSyncInput;
-use Sync\Sync\Data\Recipe;
-use Sync\Sync\Enums\Operation;
-use Sync\Sync\PendingSync;
+use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
+use MarcoRieser\Sync\Data\Recipe;
+use MarcoRieser\Sync\Enums\Operation;
+use MarcoRieser\Sync\PendingSync;
 
 use function Laravel\Prompts\confirm;
 

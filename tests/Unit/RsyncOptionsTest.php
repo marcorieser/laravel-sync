@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Sync\Sync\Rsync\RsyncOptions;
+use MarcoRieser\Sync\Rsync\RsyncOptions;
 
 it('keeps the given flags, deduplicated', function () {
     $options = RsyncOptions::resolve(['--archive', '--compress', '--archive'], dry: false, verbose: false);

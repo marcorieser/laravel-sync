@@ -33,12 +33,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Sync\\Sync\\": "src/"
+            "MarcoRieser\\Sync\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Sync\\Sync\\Tests\\": "tests/",
+            "MarcoRieser\\Sync\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/",
             "Workbench\\Database\\Factories\\": "workbench/database/factories/",
             "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
@@ -91,10 +91,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Sync\\Sync\\SyncServiceProvider"
+                "MarcoRieser\\Sync\\SyncServiceProvider"
             ],
             "aliases": {
-                "Sync": "Sync\\Sync\\Facades\\Sync"
+                "Sync": "MarcoRieser\\Sync\\Facades\\Sync"
             }
         }
     },

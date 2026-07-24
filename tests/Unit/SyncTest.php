@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Collection;
-use Sync\Sync\Data\Recipe;
-use Sync\Sync\Data\Remote;
-use Sync\Sync\Enums\Operation;
-use Sync\Sync\Exceptions\SyncException;
-use Sync\Sync\PendingSync;
-use Sync\Sync\Rsync\RsyncOptions;
-use Sync\Sync\Sync;
+use MarcoRieser\Sync\Data\Recipe;
+use MarcoRieser\Sync\Data\Remote;
+use MarcoRieser\Sync\Enums\Operation;
+use MarcoRieser\Sync\Exceptions\SyncException;
+use MarcoRieser\Sync\PendingSync;
+use MarcoRieser\Sync\Rsync\RsyncOptions;
+use MarcoRieser\Sync\Sync;
 
 beforeEach(function () {
     config([

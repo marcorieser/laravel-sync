@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sync\Sync\Rsync;
+namespace MarcoRieser\Sync\Rsync;
 
 use Stringable;
 

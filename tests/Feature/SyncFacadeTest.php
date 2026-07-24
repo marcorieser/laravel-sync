@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Sync\Sync\Facades\Sync as SyncFacade;
-use Sync\Sync\Sync;
+use MarcoRieser\Sync\Facades\Sync as SyncFacade;
+use MarcoRieser\Sync\Sync;
 
 beforeEach(function () {
     config([
