@@ -19,6 +19,13 @@ use MarcoRieser\Sync\Rsync\RsyncOptions;
 final readonly class PendingSync
 {
     /**
+     * A backup only ever applies to a pull — normalized here (not just left to the
+     * caller) so `backup !== null` reliably implies a backup will run, regardless of
+     * which operation a caller constructs this with.
+     */
+    public ?Backup $backup;
+
+    /**
      * @param  Collection<int, Recipe>  $recipes
      */
     public function __construct(
@@ -26,8 +33,10 @@ final readonly class PendingSync
         public Remote $remote,
         public Collection $recipes,
         public RsyncOptions $options,
-        public ?Backup $backup = null,
-    ) {}
+        ?Backup $backup = null,
+    ) {
+        $this->backup = $operation === Operation::Pull ? $backup : null;
+    }
 
     /**
      * Build one rsync command per resolved, de-duplicated recipe path.
@@ -43,14 +52,14 @@ final readonly class PendingSync
     /**
      * Build one backup command per resolved, de-duplicated recipe path.
      *
-     * Empty unless a backup was requested and this is a pull — backups only ever
-     * protect the local files a pull is about to overwrite.
+     * Empty unless a backup was requested — the constructor already normalizes
+     * `$backup` to null for anything but a pull, so this needs no operation check.
      *
      * @return Collection<int, BackupCommand>
      */
     public function backups(): Collection
     {
-        if ($this->backup === null || $this->operation !== Operation::Pull) {
+        if ($this->backup === null) {
             return collect();
         }
 

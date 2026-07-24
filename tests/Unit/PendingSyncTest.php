@@ -95,6 +95,19 @@ it('builds no backup commands for a push, even with a backup requested', functio
     expect($pending->backups())->toBeEmpty();
 });
 
+it('normalizes a backup requested for a push to null, so backup !== null reliably implies one runs', function () {
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/'])]);
+    $pending = new PendingSync(
+        Operation::Push,
+        $this->remote,
+        $recipes,
+        new RsyncOptions(['--archive']),
+        new Backup('.sync-backups', '2026-07-24_134530'),
+    );
+
+    expect($pending->backup)->toBeNull();
+});
+
 it('builds one backup command per unique recipe path on a pull with a backup requested', function () {
     $recipes = collect([new Recipe('assets', ['storage/app/assets/', 'storage/app/img/'])]);
     $pending = new PendingSync(
