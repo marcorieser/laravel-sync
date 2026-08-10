@@ -252,35 +252,42 @@ it('does not memoize the backup list, so it reflects a delete made earlier in th
 });
 
 it('allows a normal backup directory', function () {
-    resolve(Sync::class)->guardBackupDirSafe();
+    resolve(Sync::class)->guardBackupDirSafe($this->backupDir);
 })->throwsNoExceptions();
 
 it('refuses a blank backup directory', function () {
-    config(['sync.backup_dir' => '']);
-
-    resolve(Sync::class)->guardBackupDirSafe();
+    resolve(Sync::class)->guardBackupDirSafe('');
 })->throws(
     SyncException::class,
     'The backup directory "" resolves outside your project, or to the project root itself. Set a backup_dir inside your project.',
 );
 
 it('refuses a backup directory that resolves to the project root itself', function () {
-    config(['sync.backup_dir' => '.']);
-
-    resolve(Sync::class)->guardBackupDirSafe();
+    resolve(Sync::class)->guardBackupDirSafe('.');
 })->throws(SyncException::class);
 
 it('refuses a backup directory that steps above the project root', function () {
-    config(['sync.backup_dir' => '../outside']);
-
-    resolve(Sync::class)->guardBackupDirSafe();
+    resolve(Sync::class)->guardBackupDirSafe('../outside');
 })->throws(SyncException::class);
 
 it('refuses a backup directory that steps above the root before coming back down', function () {
-    config(['sync.backup_dir' => 'storage/../../outside']);
-
-    resolve(Sync::class)->guardBackupDirSafe();
+    resolve(Sync::class)->guardBackupDirSafe('storage/../../outside');
 })->throws(SyncException::class);
+
+it('refuses a backup directory that is a symlink pointing straight at the project root', function () {
+    $linkDir = 'sync-backups-symlink-'.Str::random(8);
+    $linkPath = base_path($linkDir);
+
+    if (! @symlink(base_path(), $linkPath)) {
+        $this->markTestSkipped('This environment does not support creating symlinks.');
+    }
+
+    try {
+        expect(fn () => resolve(Sync::class)->guardBackupDirSafe($linkDir))->toThrow(SyncException::class);
+    } finally {
+        @unlink($linkPath);
+    }
+});
 
 it('refuses a backup directory that is a symlink escaping the project', function () {
     $target = sys_get_temp_dir().'/sync-outside-'.Str::random(8);
@@ -294,10 +301,8 @@ it('refuses a backup directory that is a symlink escaping the project', function
         $this->markTestSkipped('This environment does not support creating symlinks.');
     }
 
-    config(['sync.backup_dir' => $linkDir]);
-
     try {
-        expect(fn () => resolve(Sync::class)->guardBackupDirSafe())->toThrow(SyncException::class);
+        expect(fn () => resolve(Sync::class)->guardBackupDirSafe($linkDir))->toThrow(SyncException::class);
     } finally {
         @unlink($linkPath);
         File::deleteDirectory($target);
@@ -315,10 +320,8 @@ it('allows a backup directory that is a symlink staying inside the project', fun
         $this->markTestSkipped('This environment does not support creating symlinks.');
     }
 
-    config(['sync.backup_dir' => $linkDir]);
-
     try {
-        resolve(Sync::class)->guardBackupDirSafe();
+        resolve(Sync::class)->guardBackupDirSafe($linkDir);
     } finally {
         @unlink($linkPath);
         File::deleteDirectory("{$this->backupPath}-real");
@@ -328,6 +331,21 @@ it('allows a backup directory that is a symlink staying inside the project', fun
 it('refuses to prepare a pull with an unsafe backup directory', function () {
     config(['sync.backup_dir' => '../outside']);
 
+    $sync = resolve(Sync::class);
+    $backup = new Backup('../outside', '2026-07-24_134530');
+
+    $sync->prepare(
+        Operation::Pull,
+        $sync->remote('staging'),
+        collect([$sync->recipe('assets')]),
+        new RsyncOptions([]),
+        $backup,
+    );
+})->throws(SyncException::class);
+
+it('validates the given Backup\'s own dir, not just the currently configured backup_dir', function () {
+    // sync.backup_dir (from beforeEach) is a safe, unique dir — but the Backup instance
+    // being prepared carries its own (unsafe) dir, which must be what gets checked.
     $sync = resolve(Sync::class);
     $backup = new Backup('../outside', '2026-07-24_134530');
 

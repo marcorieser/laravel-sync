@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MarcoRieser\Sync;
 
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\File;
 use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\BackupFolder;
 use MarcoRieser\Sync\Data\Recipe;
@@ -13,7 +12,6 @@ use MarcoRieser\Sync\Data\Remote;
 use MarcoRieser\Sync\Enums\Operation;
 use MarcoRieser\Sync\Exceptions\SyncException;
 use MarcoRieser\Sync\Rsync\RsyncOptions;
-use Symfony\Component\Finder\SplFileInfo;
 
 class Sync
 {
@@ -80,15 +78,20 @@ class Sync
     }
 
     /**
-     * Start a backup, guarding that `backup_dir` is safe to write into first — the
-     * single place a `Backup` gets created from config, so that guard can't be skipped
-     * by a caller forgetting to run it separately.
+     * Start a backup for the given recipes, guarding both that `backup_dir` is safe to
+     * write into and that it doesn't nest inside a recipe path — the single place a
+     * `Backup` gets created from config, so neither guard can be skipped by a caller
+     * forgetting to run it separately.
+     *
+     * @param  Collection<int, Recipe>  $recipes
      */
-    public function startBackup(): Backup
+    public function startBackup(Collection $recipes): Backup
     {
-        $this->guardBackupDirSafe();
+        $backup = Backup::now($this->backupDir());
 
-        return Backup::now($this->backupDir());
+        $this->guardBackup($backup, $recipes);
+
+        return $backup;
     }
 
     /**
@@ -101,7 +104,7 @@ class Sync
      */
     public function backups(): Collection
     {
-        $this->guardBackupDirSafe();
+        $this->guardBackupDirSafe($this->backupDir());
 
         $dir = base_path($this->backupDir());
 
@@ -122,17 +125,20 @@ class Sync
     /**
      * Guard against a `backup_dir` that would write or delete outside the project.
      *
-     * First resolves the configured directory lexically (no filesystem access, so this
-     * works even before the directory exists) and refuses it when it's blank, resolves
-     * to the project root itself, or ever steps above the root via a ".." segment. Then,
-     * if the directory (or one of its parents) already exists, resolves it for real and
-     * refuses it if a symlink leads outside the project — the lexical check alone can't
-     * catch a `backup_dir` that looks like a normal, contained relative path but is
-     * actually a symlink to somewhere else.
+     * Takes the directory to check explicitly, rather than always reading
+     * `$this->backupDir()` itself — `prepare()` needs to validate a specific `Backup`'s
+     * own `dir`, which could differ from the currently configured value.
+     *
+     * First resolves the directory lexically (no filesystem access, so this works even
+     * before the directory exists) and refuses it when it's blank, resolves to the
+     * project root itself, or ever steps above the root via a ".." segment. Then, if the
+     * directory (or one of its parents) already exists, resolves it for real and refuses
+     * it if a symlink leads outside the project (or straight at the project root) — the
+     * lexical check alone can't catch a `backup_dir` that looks like a normal, contained
+     * relative path but is actually a symlink to somewhere else.
      */
-    public function guardBackupDirSafe(): void
+    public function guardBackupDirSafe(string $dir): void
     {
-        $dir = $this->backupDir();
         $segments = [];
 
         foreach (explode('/', str_replace('\\', '/', trim($dir))) as $segment) {
@@ -166,41 +172,77 @@ class Sync
 
     /**
      * Resolve the nearest existing ancestor of the (lexically already-safe) backup
-     * directory and refuse it if that real, symlink-resolved path lies outside the
-     * project root.
+     * directory and refuse it unless that real, symlink-resolved path is contained by
+     * the project root — rejecting a path that escapes the root entirely.
      *
      * The upward walk is guaranteed to terminate: `$ancestor` starts as a subpath of
-     * `base_path()`, which the running app's own root, so it always exists and is
-     * reached at the latest. `realpath()` is trusted to succeed once `file_exists()`
-     * has just confirmed the path is there.
+     * `base_path()`, the running app's own root, so it's always reached at the latest.
+     * Unlike the walk itself, `realpath()` isn't trusted to succeed just because
+     * `file_exists()` did (a real TOCTOU window, e.g. a concurrent `sync:backups-clean`
+     * run) — failing to resolve either side is treated as unsafe, not skipped.
+     *
+     * Separately refuses the directory resolving to the project root itself — but only
+     * when the *full* configured directory already exists there (no walking up was
+     * needed): a `backup_dir` that simply hasn't been created yet naturally walks all
+     * the way up to the (always-existing) project root as its nearest ancestor, which
+     * is expected and safe, not the same as `backup_dir` itself being a symlink
+     * pointing straight at the root.
      *
      * @param  array<int, string>  $segments
      */
     private function guardBackupDirNotEscapingRootOnDisk(string $dir, array $segments): void
     {
-        $ancestor = base_path(implode('/', $segments));
+        $target = base_path(implode('/', $segments));
+        $ancestor = $target;
 
         while (! file_exists($ancestor)) {
             $ancestor = dirname($ancestor);
         }
 
-        $root = realpath(base_path());
         $real = realpath($ancestor);
+        $root = realpath(base_path());
+        $normalizedReal = $real === false ? null : $this->normalizePath($real);
+        $normalizedRoot = $root === false ? null : $this->normalizePath($root);
 
-        if ($root !== false && $real !== false
-            && ! str_starts_with($this->normalizePath($real).'/', $this->normalizePath($root).'/')) {
+        if ($normalizedReal === null || $normalizedRoot === null || ! $this->isPathWithin($normalizedReal, $normalizedRoot)) {
+            throw SyncException::backupDirUnsafe($dir);
+        }
+
+        if ($ancestor === $target && $normalizedReal === $normalizedRoot) {
             throw SyncException::backupDirUnsafe($dir);
         }
     }
 
     /**
      * Sum the size, in bytes, of every file (including hidden ones, e.g. a backed-up
-     * `.env`) under the given directory.
+     * `.env`) under the given directory, recursing into subdirectories.
+     *
+     * Walks the tree with `glob()`, not `File::allFiles()`: the latter is Finder-backed
+     * and throws if the directory vanishes between being listed by `backups()` and
+     * being sized here — the same class of race `backups()` itself avoids by using
+     * `glob()` instead of `File::directories()`. `glob()` on a missing directory
+     * returns nothing rather than throwing, so a vanished folder naturally sizes to 0
+     * with no separate check needed.
      */
     private function directorySize(string $path): int
     {
-        return (int) collect(File::allFiles($path, hidden: true))
-            ->sum(fn (SplFileInfo $file) => $file->getSize());
+        $size = 0;
+
+        foreach ([...glob("{$path}/*", GLOB_NOSORT) ?: [], ...glob("{$path}/.*", GLOB_NOSORT) ?: []] as $entry) {
+            $name = basename($entry);
+
+            if ($name === '.') {
+                continue;
+            }
+
+            if ($name === '..') {
+                continue;
+            }
+
+            $size += (is_dir($entry) ? $this->directorySize($entry) : @filesize($entry)) ?: 0;
+        }
+
+        return $size;
     }
 
     /**
@@ -241,8 +283,7 @@ class Sync
         $this->guardNotSamePath($remote, $recipes);
 
         if ($backup instanceof Backup && $operation === Operation::Pull) {
-            $this->guardBackupDirSafe();
-            $this->guardBackupNotNested($backup, $recipes);
+            $this->guardBackup($backup, $recipes);
         }
 
         return new PendingSync($operation, $remote, $recipes, $options, $backup);
@@ -294,10 +335,23 @@ class Sync
         foreach ($this->resolvedPaths($recipes) as $path) {
             $recipePath = $this->normalizePath(rtrim(base_path($path), '/'));
 
-            if (str_starts_with($backupPath.'/', $recipePath.'/')) {
+            if ($this->isPathWithin($backupPath, $recipePath)) {
                 throw SyncException::backupDirNested($backup->dir, $path);
             }
         }
+    }
+
+    /**
+     * Guard both that `backup_dir` is safe to write into and that it doesn't nest
+     * inside a recipe path — the pair `prepare()` and `startBackup()` both need to run
+     * on a `Backup`, whether it was just created or handed in by the caller.
+     *
+     * @param  Collection<int, Recipe>  $recipes
+     */
+    private function guardBackup(Backup $backup, Collection $recipes): void
+    {
+        $this->guardBackupDirSafe($backup->dir);
+        $this->guardBackupNotNested($backup, $recipes);
     }
 
     /**
@@ -323,5 +377,14 @@ class Sync
     private function normalizePath(string $path): string
     {
         return strtolower(str_replace('\\', '/', $path));
+    }
+
+    /**
+     * Whether `$path` is the same as, or nested inside, `$ancestor`. Both must already
+     * be normalized (via `normalizePath()`) and trailing-slash-free.
+     */
+    private function isPathWithin(string $path, string $ancestor): bool
+    {
+        return str_starts_with($path.'/', $ancestor.'/');
     }
 }
