@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace MarcoRieser\Sync;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\File;
 use MarcoRieser\Sync\Data\Backup;
+use MarcoRieser\Sync\Data\BackupFolder;
 use MarcoRieser\Sync\Data\Recipe;
 use MarcoRieser\Sync\Data\Remote;
 use MarcoRieser\Sync\Enums\Operation;
 use MarcoRieser\Sync\Exceptions\SyncException;
 use MarcoRieser\Sync\Rsync\RsyncOptions;
+use Symfony\Component\Finder\SplFileInfo;
 
 class Sync
 {
@@ -74,6 +77,77 @@ class Sync
         $value = config('sync.backup_dir', '.sync-backups');
 
         return is_string($value) ? $value : '.sync-backups';
+    }
+
+    /**
+     * List the timestamped backup folders on disk under `backup_dir`, newest first.
+     *
+     * Not memoized with `once()` like `remotes()`/`recipes()`/`defaultOptions()` — this
+     * list must reflect a delete made earlier in the same request (`sync:backups-clean`).
+     *
+     * @return Collection<int, BackupFolder>
+     */
+    public function backups(): Collection
+    {
+        $dir = base_path($this->backupDir());
+
+        /** @var array<int, string> $directories */
+        $directories = File::isDirectory($dir) ? File::directories($dir) : [];
+
+        return collect($directories)
+            ->filter(fn (string $path) => preg_match('/^\d{4}-\d{2}-\d{2}_\d{6}$/', basename($path)) === 1)
+            ->map(fn (string $path) => BackupFolder::fromPath($path, $this->directorySize($path)))
+            ->sortByDesc(fn (BackupFolder $folder) => $folder->name)
+            ->values();
+    }
+
+    /**
+     * Guard against a `backup_dir` that would delete outside the project when cleaned.
+     *
+     * Resolves the configured directory lexically (no filesystem access, so this works
+     * even before the directory exists) and refuses it when it's blank, resolves to the
+     * project root itself, or ever steps above the root via a ".." segment.
+     */
+    public function guardBackupDirSafe(): void
+    {
+        $dir = $this->backupDir();
+        $segments = [];
+
+        foreach (explode('/', str_replace('\\', '/', trim($dir))) as $segment) {
+            if ($segment === '') {
+                continue;
+            }
+
+            if ($segment === '.') {
+                continue;
+            }
+
+            if ($segment === '..') {
+                if ($segments === []) {
+                    throw SyncException::backupDirUnsafe($dir);
+                }
+
+                array_pop($segments);
+
+                continue;
+            }
+
+            $segments[] = $segment;
+        }
+
+        if ($segments === []) {
+            throw SyncException::backupDirUnsafe($dir);
+        }
+    }
+
+    /**
+     * Sum the size, in bytes, of every file (including hidden ones, e.g. a backed-up
+     * `.env`) under the given directory.
+     */
+    private function directorySize(string $path): int
+    {
+        return (int) collect(File::allFiles($path, hidden: true))
+            ->sum(fn (SplFileInfo $file) => $file->getSize());
     }
 
     /**

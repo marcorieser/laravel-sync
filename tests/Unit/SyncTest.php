@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use MarcoRieser\Sync\Data\Backup;
+use MarcoRieser\Sync\Data\BackupFolder;
 use MarcoRieser\Sync\Data\Recipe;
 use MarcoRieser\Sync\Data\Remote;
 use MarcoRieser\Sync\Enums\Operation;
@@ -21,7 +24,17 @@ beforeEach(function () {
         'sync.recipes' => [
             'assets' => ['storage/app/assets/'],
         ],
+        // Unique per test (even under `pest --parallel`, which shares one Testbench
+        // skeleton across the run) so these filesystem-touching tests can't collide.
+        'sync.backup_dir' => $backupDir = '.sync-backups-'.Str::random(8),
     ]);
+
+    $this->backupDir = $backupDir;
+    $this->backupPath = base_path($backupDir);
+});
+
+afterEach(function () {
+    File::deleteDirectory($this->backupPath);
 });
 
 it('resolves the singleton from the container', function () {
@@ -187,3 +200,75 @@ it('does not guard against a nested backup directory on a push, since a push nev
 
     expect($pending)->toBeInstanceOf(PendingSync::class);
 });
+
+it('lists backup folders newest first', function () {
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-25_090000");
+
+    $backups = resolve(Sync::class)->backups();
+
+    expect($backups)->toBeInstanceOf(Collection::class)
+        ->and($backups->pluck('name')->all())->toBe(['2026-07-25_090000', '2026-07-24_134530'])
+        ->and($backups->first())->toBeInstanceOf(BackupFolder::class);
+});
+
+it('ignores folders whose name is not a backup timestamp', function () {
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+    File::ensureDirectoryExists("{$this->backupPath}/not-a-backup");
+
+    expect(resolve(Sync::class)->backups()->pluck('name')->all())->toBe(['2026-07-24_134530']);
+});
+
+it('returns no backups when the backup directory does not exist', function () {
+    expect(resolve(Sync::class)->backups())->toBeInstanceOf(Collection::class)
+        ->and(resolve(Sync::class)->backups())->toHaveCount(0);
+});
+
+it('sums hidden files into a backup folder\'s size', function () {
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+    File::put("{$this->backupPath}/2026-07-24_134530/visible.txt", str_repeat('a', 100));
+    File::put("{$this->backupPath}/2026-07-24_134530/.env", str_repeat('b', 50));
+
+    expect(resolve(Sync::class)->backups()->first()->size)->toBe(150);
+});
+
+it('does not memoize the backup list, so it reflects a delete made earlier in the same run', function () {
+    $sync = resolve(Sync::class);
+
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+    expect($sync->backups())->toHaveCount(1);
+
+    File::deleteDirectory("{$this->backupPath}/2026-07-24_134530");
+    expect($sync->backups())->toHaveCount(0);
+});
+
+it('allows a normal backup directory', function () {
+    resolve(Sync::class)->guardBackupDirSafe();
+})->throwsNoExceptions();
+
+it('refuses a blank backup directory', function () {
+    config(['sync.backup_dir' => '']);
+
+    resolve(Sync::class)->guardBackupDirSafe();
+})->throws(
+    SyncException::class,
+    'The backup directory "" resolves outside your project, or to the project root itself. Refusing to delete anything. Set a backup_dir inside your project.',
+);
+
+it('refuses a backup directory that resolves to the project root itself', function () {
+    config(['sync.backup_dir' => '.']);
+
+    resolve(Sync::class)->guardBackupDirSafe();
+})->throws(SyncException::class);
+
+it('refuses a backup directory that steps above the project root', function () {
+    config(['sync.backup_dir' => '../outside']);
+
+    resolve(Sync::class)->guardBackupDirSafe();
+})->throws(SyncException::class);
+
+it('refuses a backup directory that steps above the root before coming back down', function () {
+    config(['sync.backup_dir' => 'storage/../../outside']);
+
+    resolve(Sync::class)->guardBackupDirSafe();
+})->throws(SyncException::class);
