@@ -31,7 +31,9 @@ class SyncBackupsCleanCommand extends Command
     protected $signature = 'sync:backups-clean
         {--A|all : Delete every backup}
         {--D|dry : Preview which backups would be deleted}
-        {--F|force : Skip the confirmation prompt}';
+        {--F|force : Skip the confirmation prompt}
+        {--K|keep= : Keep the N newest backups, deleting the rest}
+        {--older-than= : Delete backups older than N days}';
 
     /**
      * The command description.
@@ -46,6 +48,14 @@ class SyncBackupsCleanCommand extends Command
         $sync = resolve(Sync::class);
 
         try {
+            // Resolved before `backups()` runs, and before the empty-directory check
+            // below returns early: a malformed `--keep`/`--older-than` value, or either
+            // combined with `--all`, must fail the same way regardless of whether any
+            // backups currently exist — a cron job with a typo'd flag shouldn't get a
+            // silent, misleading "No backups found" the one time the directory is
+            // empty, only to fail for real the next time it isn't.
+            [$keep, $olderThan] = $this->resolveRetentionOptions();
+
             $backups = $sync->backups();
 
             if ($backups->isEmpty()) {
@@ -54,7 +64,13 @@ class SyncBackupsCleanCommand extends Command
                 return self::SUCCESS;
             }
 
-            $selected = $this->resolveSelection($backups);
+            $selected = $this->resolveSelection($backups, $keep, $olderThan, $sync);
+
+            if ($selected->isEmpty()) {
+                $this->info('No backups match the given retention criteria.');
+
+                return self::SUCCESS;
+            }
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
 
@@ -79,14 +95,19 @@ class SyncBackupsCleanCommand extends Command
     }
 
     /**
-     * Resolve which backups to delete: every backup with `--all`, an interactive
-     * multiselect otherwise, or a friendly error when neither applies.
+     * Resolve which backups to delete: by retention criteria (`--keep`/`--older-than`)
+     * when either is given, every backup with `--all`, an interactive multiselect
+     * otherwise, or a friendly error when nothing applies.
      *
      * @param  Collection<int, BackupFolder>  $backups
      * @return Collection<int, BackupFolder>
      */
-    private function resolveSelection(Collection $backups): Collection
+    private function resolveSelection(Collection $backups, ?int $keep, ?int $olderThan, Sync $sync): Collection
     {
+        if ($keep !== null || $olderThan !== null) {
+            return $sync->filterByRetention($backups, $keep, $olderThan);
+        }
+
         if ((bool) $this->option('all')) {
             return $backups;
         }
@@ -102,6 +123,56 @@ class SyncBackupsCleanCommand extends Command
         );
 
         return $backups->whereIn('name', $names, true)->values();
+    }
+
+    /**
+     * Parse `--keep`/`--older-than` into non-negative integers, throwing a friendly
+     * error for a value that isn't one, or for either combined with `--all` — checked
+     * by presence alone, before parsing, so `--all --keep=abc` reports the conflict
+     * (fix: drop `--keep`) rather than the value error (fix: correct the number), which
+     * would misleadingly suggest the number format is the actual problem.
+     *
+     * @return array{0: ?int, 1: ?int}
+     */
+    private function resolveRetentionOptions(): array
+    {
+        $hasRetentionOption = $this->option('keep') !== null || $this->option('older-than') !== null;
+
+        if ($hasRetentionOption && (bool) $this->option('all')) {
+            throw SyncException::conflictingBackupSelection();
+        }
+
+        if (! $hasRetentionOption) {
+            return [null, null];
+        }
+
+        return [
+            $this->resolveNonNegativeIntOption('keep'),
+            $this->resolveNonNegativeIntOption('older-than'),
+        ];
+    }
+
+    private function resolveNonNegativeIntOption(string $option): ?int
+    {
+        $value = $this->option($option);
+
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_string($value)) {
+            // Not reachable through `{--keep=}`'s own (single-value) definition — Symfony
+            // Console only ever returns an array for a `*`-repeatable option — but
+            // `Command::option()` is typed generically across every option on the
+            // command, so this still has to be handled to avoid an unsafe cast below.
+            throw SyncException::invalidRetentionValue($option, get_debug_type($value));
+        }
+
+        if (ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        throw SyncException::invalidRetentionValue($option, $value);
     }
 
     /**

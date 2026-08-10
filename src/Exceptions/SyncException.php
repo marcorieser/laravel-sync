@@ -119,6 +119,23 @@ class SyncException extends RuntimeException
      */
     public static function noBackupSelected(): self
     {
-        return new self('You must select at least one backup, or pass --all to delete every backup.');
+        return new self('You must select at least one backup, or pass --all, --keep, or --older-than to select which backups to delete.');
+    }
+
+    /**
+     * `--keep` or `--older-than` was given something other than a non-negative integer.
+     */
+    public static function invalidRetentionValue(string $option, string $value): self
+    {
+        return new self(sprintf('The --%s option must be a non-negative integer, got "%s".', $option, $value));
+    }
+
+    /**
+     * `--all` was combined with `--keep` or `--older-than` — both already select which
+     * backups to delete, so combining them is ambiguous rather than additive.
+     */
+    public static function conflictingBackupSelection(): self
+    {
+        return new self('You cannot combine --all with --keep or --older-than — they already select which backups to delete.');
     }
 }
