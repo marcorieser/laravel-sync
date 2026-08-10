@@ -54,9 +54,11 @@ trait ResolvesSyncInput
 
             $sync->guardNotSamePath($remote, $recipes);
 
-            $backup = $this->resolveBackup($operation) ? Backup::now($sync->backupDir()) : null;
+            $backup = null;
 
-            if ($backup instanceof Backup) {
+            if ($this->resolveBackup($operation)) {
+                $sync->guardBackupDirSafe();
+                $backup = Backup::now($sync->backupDir());
                 $sync->guardBackupNotNested($backup, $recipes);
             }
 

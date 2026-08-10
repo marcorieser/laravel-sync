@@ -91,22 +91,30 @@ class Sync
     {
         $dir = base_path($this->backupDir());
 
-        /** @var array<int, string> $directories */
-        $directories = File::isDirectory($dir) ? File::directories($dir) : [];
+        // `glob()`, not `File::isDirectory()` + `File::directories()`: that two-step
+        // check-then-act pair races if the directory is removed in between (by another
+        // process, or a concurrent `sync:backups-clean` run) — Laravel's Finder-backed
+        // `directories()` throws on a now-missing directory. `glob()` is a single call
+        // that never throws, returning an empty list either way.
+        $directories = glob("{$dir}/*", GLOB_ONLYDIR) ?: [];
 
         return collect($directories)
-            ->filter(fn (string $path) => preg_match('/^\d{4}-\d{2}-\d{2}_\d{6}$/', basename($path)) === 1)
+            ->filter(fn (string $path) => BackupFolder::isValidName(basename($path)))
             ->map(fn (string $path) => BackupFolder::fromPath($path, $this->directorySize($path)))
             ->sortByDesc(fn (BackupFolder $folder) => $folder->name)
             ->values();
     }
 
     /**
-     * Guard against a `backup_dir` that would delete outside the project when cleaned.
+     * Guard against a `backup_dir` that would write or delete outside the project.
      *
-     * Resolves the configured directory lexically (no filesystem access, so this works
-     * even before the directory exists) and refuses it when it's blank, resolves to the
-     * project root itself, or ever steps above the root via a ".." segment.
+     * First resolves the configured directory lexically (no filesystem access, so this
+     * works even before the directory exists) and refuses it when it's blank, resolves
+     * to the project root itself, or ever steps above the root via a ".." segment. Then,
+     * if the directory (or one of its parents) already exists, resolves it for real and
+     * refuses it if a symlink leads outside the project — the lexical check alone can't
+     * catch a `backup_dir` that looks like a normal, contained relative path but is
+     * actually a symlink to somewhere else.
      */
     public function guardBackupDirSafe(): void
     {
@@ -136,6 +144,46 @@ class Sync
         }
 
         if ($segments === []) {
+            throw SyncException::backupDirUnsafe($dir);
+        }
+
+        $this->guardBackupDirNotEscapingRootOnDisk($dir, $segments);
+    }
+
+    /**
+     * Resolve the nearest existing ancestor of the (lexically already-safe) backup
+     * directory and refuse it if that real, symlink-resolved path lies outside the
+     * project root.
+     *
+     * @param  array<int, string>  $segments
+     */
+    private function guardBackupDirNotEscapingRootOnDisk(string $dir, array $segments): void
+    {
+        $root = realpath(base_path());
+
+        if ($root === false) {
+            return;
+        }
+
+        $ancestor = base_path(implode('/', $segments));
+
+        while (! file_exists($ancestor)) {
+            $parent = dirname($ancestor);
+
+            if ($parent === $ancestor) {
+                return;
+            }
+
+            $ancestor = $parent;
+        }
+
+        $real = realpath($ancestor);
+
+        if ($real === false) {
+            return;
+        }
+
+        if (! str_starts_with($this->normalizePath($real).'/', $this->normalizePath($root).'/')) {
             throw SyncException::backupDirUnsafe($dir);
         }
     }
@@ -188,6 +236,7 @@ class Sync
         $this->guardNotSamePath($remote, $recipes);
 
         if ($backup instanceof Backup && $operation === Operation::Pull) {
+            $this->guardBackupDirSafe();
             $this->guardBackupNotNested($backup, $recipes);
         }
 

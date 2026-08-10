@@ -6,6 +6,12 @@ namespace MarcoRieser\Sync\Data;
 
 final readonly class Backup
 {
+    /**
+     * The folder-name format a timestamp is stamped with, and parsed back from
+     * (see `BackupFolder::fromPath()`). The single source of truth for both sides.
+     */
+    public const string FORMAT = 'Y-m-d_His';
+
     public function __construct(
         public string $dir,
         public string $timestamp,
@@ -20,6 +26,6 @@ final readonly class Backup
      */
     public static function now(string $dir): self
     {
-        return new self($dir, now()->format('Y-m-d_His'));
+        return new self($dir, now()->format(self::FORMAT));
     }
 }
