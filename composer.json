@@ -31,8 +31,10 @@
         "pestphp/pest-plugin-laravel": "^4.1",
         "pestphp/pest-plugin-type-coverage": "^4.0",
         "phpstan/extension-installer": "^1.4",
-        "phpstan/phpstan": "<2.2.6",
         "rector/rector": "^2.5.7"
+    },
+    "conflict": {
+        "phpstan/phpstan": ">=2.2.6"
     },
     "autoload": {
         "psr-4": {
