@@ -299,6 +299,27 @@ it('does not follow a symlink when summing a backup folder\'s size', function ()
     }
 });
 
+it('does not let a glob metacharacter in backup_dir widen which folders get listed', function () {
+    $prefix = 'glob-test-'.Str::random(8);
+
+    // The literal directory the configured backup_dir actually names (the trailing
+    // "*" is part of its real name here, not intended as a wildcard by the user).
+    File::ensureDirectoryExists(base_path("{$prefix}*/2026-07-24_134530"));
+
+    // An unrelated sibling that an *unescaped* "{$prefix}*" glob pattern would also
+    // match, even though it was never meant to be part of backup_dir.
+    File::ensureDirectoryExists(base_path("{$prefix}-sibling/2026-07-25_090000"));
+
+    try {
+        config(['sync.backup_dir' => "{$prefix}*"]);
+
+        expect(resolve(Sync::class)->backups()->pluck('name')->all())->toBe(['2026-07-24_134530']);
+    } finally {
+        File::deleteDirectory(base_path("{$prefix}*"));
+        File::deleteDirectory(base_path("{$prefix}-sibling"));
+    }
+});
+
 it('does not memoize the backup list, so it reflects a delete made earlier in the same run', function () {
     $sync = resolve(Sync::class);
 

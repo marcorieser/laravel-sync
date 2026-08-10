@@ -113,7 +113,12 @@ class Sync
         // process, or a concurrent `sync:backups-clean` run) — Laravel's Finder-backed
         // `directories()` throws on a now-missing directory. `glob()` is a single call
         // that never throws, returning an empty list either way.
-        $directories = glob("{$dir}/*", GLOB_ONLYDIR) ?: [];
+        //
+        // `$dir` itself is escaped (only the trailing "/*" is left as an actual
+        // wildcard): a configured `backup_dir` containing a glob metacharacter (e.g.
+        // "backups*") would otherwise widen the pattern to match sibling directories
+        // too, and `--all` would delete timestamp-named folders outside `backup_dir`.
+        $directories = glob($this->escapeGlobPattern($dir).'/*', GLOB_ONLYDIR) ?: [];
 
         // Excludes symlinks even though `GLOB_ONLYDIR` (and thus `is_dir()`) follows
         // them: a symlinked entry here would let `sync:backups-clean` hand
@@ -225,6 +230,16 @@ class Sync
      * is expected and safe, not the same as `backup_dir` itself being a symlink
      * pointing straight at the root.
      *
+     * Compares the two `realpath()` results case-sensitively (separators normalized,
+     * but NOT lowercased like `normalizePath()` does elsewhere in this class) — this is
+     * the one comparison in the class that resolves symlinks against real disk state to
+     * decide whether a path is safe, so folding case here would let a symlink into a
+     * case-differing sibling directory (a genuinely different directory on a
+     * case-sensitive filesystem, e.g. Linux) be misread as "inside" the project root.
+     * The other, non-disk-resolving comparisons in this class stay case-folded on
+     * purpose: they're not deciding filesystem safety, just matching a config-provided
+     * path against `base_path()`'s own formatting.
+     *
      * @param  array<int, string>  $segments
      */
     private function guardBackupDirNotEscapingRootOnDisk(string $dir, array $segments): void
@@ -238,8 +253,8 @@ class Sync
 
         $real = realpath($ancestor);
         $root = realpath(base_path());
-        $normalizedReal = $real === false ? null : $this->normalizePath($real);
-        $normalizedRoot = $root === false ? null : $this->normalizePath($root);
+        $normalizedReal = $real === false ? null : str_replace('\\', '/', $real);
+        $normalizedRoot = $root === false ? null : str_replace('\\', '/', $root);
 
         if ($normalizedReal === null || $normalizedRoot === null || ! $this->isPathWithin($normalizedReal, $normalizedRoot)) {
             throw SyncException::backupDirUnsafe($dir);
@@ -266,12 +281,18 @@ class Sync
      * one pointing back at an ancestor of itself — recursing into it would re-walk the
      * same real directories over and over (inflating the reported size) until the
      * built-up path finally exceeds the OS path-length limit.
+     *
+     * `$path` is escaped the same way `backups()` escapes `$dir` — a backed-up file or
+     * directory is free to contain a glob metacharacter in its own name (e.g.
+     * "report[final].csv" is a perfectly valid filename), which would otherwise widen
+     * the pattern and pull unrelated entries into the sum.
      */
     private function directorySize(string $path): int
     {
         $size = 0;
+        $escaped = $this->escapeGlobPattern($path);
 
-        foreach ([...glob("{$path}/*", GLOB_NOSORT) ?: [], ...glob("{$path}/.*", GLOB_NOSORT) ?: []] as $entry) {
+        foreach ([...glob("{$escaped}/*", GLOB_NOSORT) ?: [], ...glob("{$escaped}/.*", GLOB_NOSORT) ?: []] as $entry) {
             $name = basename($entry);
 
             if ($name === '.') {
@@ -290,6 +311,21 @@ class Sync
         }
 
         return $size;
+    }
+
+    /**
+     * Escape glob metacharacters ("*", "?", "[", "]") in a literal filesystem path, so
+     * it can be used as the fixed prefix of a `glob()` pattern without any of its own
+     * characters being reinterpreted as wildcards.
+     *
+     * Wraps each metacharacter in its own single-character bracket expression (e.g.
+     * "*" becomes "[*]") — the standard glob-quoting idiom, and one that works
+     * cross-platform: `glob()`'s other escaping mechanism (a literal backslash) is
+     * ambiguous with the path separator on Windows, but "[" and "]" never are.
+     */
+    private function escapeGlobPattern(string $path): string
+    {
+        return preg_replace('/[*?\[\]]/', '[$0]', $path) ?? $path;
     }
 
     /**
