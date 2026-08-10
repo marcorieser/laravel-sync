@@ -23,18 +23,6 @@ final readonly class BackupFolder
     ) {}
 
     /**
-     * Whether a folder name is a valid backup timestamp, without hydrating it.
-     *
-     * The single place that decides this — `Sync::backups()` uses it to filter
-     * candidate folders, rather than a separately maintained regex that could drift
-     * out of sync with what `fromPath()` actually accepts.
-     */
-    public static function isValidName(string $name): bool
-    {
-        return self::parse($name) !== false;
-    }
-
-    /**
      * Hydrate a backup folder from its absolute path and size on disk.
      *
      * The folder's name is its own timestamp (`Backup::FORMAT`, see `Backup::now()`), so
@@ -56,8 +44,9 @@ final readonly class BackupFolder
      *
      * `$size` is a callback, not a plain value: `Sync::backups()` needs to reject an
      * invalid folder name before paying for its (potentially expensive, recursive)
-     * size calculation, and this is the single point where validity is known — calling
-     * `isValidName()` first and `fromPath()` after would parse the same name twice.
+     * size calculation, and this is the single point where validity is known — a
+     * separate "is this valid?" check followed by a plain `fromPath()` call would parse
+     * the same name twice.
      *
      * @param  callable(): int  $size
      */

@@ -135,9 +135,9 @@ class Sync
         // `File::deleteDirectory()` a path whose *contents* live outside `backup_dir`,
         // silently wiping whatever the link points at instead of a real backup folder.
         //
-        // `tryFromPath()`, not `isValidName()` + `fromPath()`: both parse the folder
-        // name against `Backup::FORMAT`, so checking validity and hydrating separately
-        // would parse every real backup folder's name twice for no reason.
+        // `tryFromPath()`, not a separate validity check followed by `fromPath()`: both
+        // would parse the folder name against `Backup::FORMAT`, so checking validity
+        // and hydrating separately would parse every real backup folder's name twice.
         return collect($directories)
             ->reject(fn (string $path) => is_link($path))
             ->map(fn (string $path) => BackupFolder::tryFromPath($path, fn () => $this->directorySize($path)))
