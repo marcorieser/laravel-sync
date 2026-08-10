@@ -131,8 +131,8 @@ it('reports a friendly error when a backup fails to delete', function () {
     File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
 
     // Matched against the path `Sync::backups()` actually resolves (not a hand-built
-    // string) — `File::directories()` returns OS-native separators, and a literal "/"
-    // join would mismatch Mockery's exact string match on Windows.
+    // string) — `glob()` returns OS-native separators, and a literal "/" join would
+    // mismatch Mockery's exact string match on Windows.
     $folder = resolve(Sync::class)->backups()->sole();
 
     File::partialMock()
