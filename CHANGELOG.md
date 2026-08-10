@@ -1,6 +1,11 @@
 # Release Notes
 
-## [Unreleased](https://github.com/marcorieser/laravel-sync/compare/v0.1.0...HEAD)
+## [Unreleased](https://github.com/marcorieser/laravel-sync/compare/v0.2.0...HEAD)
+
+## [v0.2.0](https://github.com/marcorieser/laravel-sync/compare/v0.1.0...v0.2.0) - 2026-08-10
+
+- Add `--backup`/`-B` to back up local files before a real pull, into a timestamped folder under the configurable `backup_dir` (default `.sync-backups`)
+- Add Rector for automated refactoring; raise PHPStan to level max
 
 ## [v0.1.0](https://github.com/marcorieser/laravel-sync/compare/main...v0.1.0) - 2026-07-24
 
