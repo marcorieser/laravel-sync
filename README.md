@@ -105,8 +105,8 @@ of the selected recipes are copied here, into a timestamped folder, before the p
 'backup_dir' => '.sync-backups',
 ```
 
-Each backed-up pull adds another timestamped folder; nothing prunes old ones automatically.
-Add `backup_dir` to your `.gitignore` and clean it out periodically.
+Each backed-up pull adds another timestamped folder; nothing prunes old ones automatically. Add
+`backup_dir` to your `.gitignore` and run `php artisan sync:backups-clean` to clean it out periodically.
 
 ## Usage
 
@@ -119,13 +119,15 @@ php artisan sync {push|pull} {remote} {recipe...} [options]
 | `sync` | Run the sync. |
 | `sync:list` | Preview the origin, target, options, and port in a table, without syncing. |
 | `sync:commands` | Print the `rsync` commands that would be run, without syncing. |
+| `sync:backups-clean` | Delete backup folders created by a backed-up pull. |
 
 | Option | Description |
 | --- | --- |
 | `-O`, `--option=*` | Override the default rsync options. Repeatable. |
-| `-D`, `--dry` | Perform a dry run, with real-time output. |
-| `-A`, `--all` | Sync every configured recipe. |
+| `-D`, `--dry` | Perform a dry run, with real-time output. On `sync:backups-clean`, preview which backups would be deleted. |
+| `-A`, `--all` | Sync every configured recipe. On `sync:backups-clean`, delete every backup. |
 | `-B`, `--backup` | Back up local files to `backup_dir` before a real pull. |
+| `-F`, `--force` | `sync:backups-clean` only. Skip the confirmation prompt. |
 | `-v` | Show real-time output while syncing (progress, stats, ...). |
 
 Any argument you omit is prompted for interactively (operation, remote, recipes, and rsync options), unless
@@ -140,6 +142,18 @@ files, so a push (or a dry run) ignores it. Before the pull runs, the local file
 are copied into a timestamped folder under `backup_dir` (e.g. `.sync-backups/2026-07-24_134530/`), using a
 fixed `--archive --relative` copy independent of your chosen rsync options. If you don't pass `--backup` and
 you're pulling interactively, you're asked whether to back up before you're asked which rsync options to use.
+
+### Cleaning Up Backups
+
+`sync:backups-clean` deletes timestamped folders under `backup_dir`, leaving `backup_dir` itself (and
+anything in it that isn't a timestamped backup folder) untouched. Run it without options to pick backups
+from an interactive list (with size and age), or pass `--all` to select every one. Add `--dry` to preview
+what would be deleted without deleting anything, and `--force` to skip the confirmation prompt.
+
+Running it with `--no-interaction` and without `--all` fails fast with a friendly error instead of deleting
+anything — there's no picker to fall back to, and deleting every backup by default would be surprising. The
+confirmation prompt only appears when running interactively, so `--no-interaction --all` (e.g. in a cron job)
+deletes immediately without needing `--force`.
 
 ### Examples
 
@@ -165,6 +179,15 @@ php artisan sync:commands pull staging assets
 
 # Fully interactive
 php artisan sync
+
+# Pick which backups to delete from an interactive list
+php artisan sync:backups-clean
+
+# Delete every backup without a confirmation prompt
+php artisan sync:backups-clean --all --force
+
+# Preview which backups --all would delete
+php artisan sync:backups-clean --all --dry
 ```
 
 ## Changelog

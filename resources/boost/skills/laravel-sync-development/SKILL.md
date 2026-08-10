@@ -14,7 +14,7 @@ push or pull files and folders between environments (e.g. local, staging, produc
 
 ## Primary Goal
 
-- apply the `marcorieser/laravel-sync` package's public API (config, `sync`, `sync:list`, `sync:commands`) in the smallest correct way
+- apply the `marcorieser/laravel-sync` package's public API (config, `sync`, `sync:list`, `sync:commands`, `sync:backups-clean`) in the smallest correct way
 
 ## Prerequisites
 
@@ -112,6 +112,21 @@ prompts "Back up the local files before pulling?" before the rsync-options promp
 
 Neither of these two commands syncs anything; they only resolve and display.
 
+### 8. Clean up old backups (optional)
+
+```bash
+php artisan sync:backups-clean
+```
+
+Deletes timestamped folders under `backup_dir`, leaving `backup_dir` itself (and anything in it that isn't a
+timestamped backup folder) untouched. With no options, it prompts with a multiselect listing each backup's
+name, size, and age. Options: `-A`/`--all` (select every backup instead of prompting), `-D`/`--dry` (preview
+what would be deleted, deletes nothing), `-F`/`--force` (skip the confirmation prompt).
+
+Running it with `--no-interaction` and without `--all` fails fast with a clear error instead of deleting
+anything — there's no picker to fall back to. The confirmation prompt only shows when running interactively,
+so `--no-interaction --all` (e.g. in a scheduled task) deletes immediately without needing `--force`.
+
 ## Rules, References, and Templates
 
 Read before executing:
@@ -139,10 +154,13 @@ php artisan sync push production --all --no-interaction
 
 # Preview the exact rsync command without running it
 php artisan sync:commands push production assets
+
+# Delete every backup without a confirmation prompt (e.g. in a scheduled task)
+php artisan sync:backups-clean --all --force
 ```
 
 ## Anti-patterns
 
-- do not document package internals (DTOs, the `Sync` service, `RsyncCommand`/`RsyncOptions`/`BackupCommand` value objects) here; keep the skill focused on adoption in Laravel apps
+- do not document package internals (DTOs, the `Sync` service, `RsyncCommand`/`RsyncOptions`/`BackupCommand`/`BackupFolder` value objects) here; keep the skill focused on adoption in Laravel apps
 - do not suggest managing SSH keys, passwords, or host verification through this package — it relies entirely on the host machine's existing `ssh` setup
 - do not add a `push`/`pull` for a `read_only` remote as a documented workaround; it is a deliberate guard
