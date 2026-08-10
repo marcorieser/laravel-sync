@@ -7,6 +7,7 @@ namespace MarcoRieser\Sync\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Support\Arrayable;
 use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
+use MarcoRieser\Sync\PendingSync;
 
 use function Laravel\Prompts\table;
 
@@ -36,7 +37,7 @@ class SyncListCommand extends Command
      */
     public function handle(): int
     {
-        if (($pending = $this->resolvePendingSync()) === null) {
+        if (! ($pending = $this->resolvePendingSync()) instanceof PendingSync) {
             return self::FAILURE;
         }
 

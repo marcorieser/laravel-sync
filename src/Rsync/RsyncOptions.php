@@ -104,7 +104,11 @@ final readonly class RsyncOptions implements Stringable
                 continue;
             }
 
-            if ($flag === '--backup' || str_starts_with($flag, '--backup-dir=')) {
+            if ($flag === '--backup') {
+                continue;
+            }
+
+            if (str_starts_with($flag, '--backup-dir=')) {
                 continue;
             }
 

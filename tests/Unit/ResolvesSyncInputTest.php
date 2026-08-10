@@ -14,7 +14,7 @@ beforeEach(function () {
     $this->call = fn (array $configDefaults, bool $verbose, bool $backup): array => (new ReflectionMethod(
         SyncCommand::class,
         'defaultOptionsForPrompt',
-    ))->invoke(app(SyncCommand::class), $configDefaults, $verbose, $backup);
+    ))->invoke(resolve(SyncCommand::class), $configDefaults, $verbose, $backup);
 });
 
 it('keeps the default untouched when nothing is excluded', function () {

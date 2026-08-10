@@ -18,10 +18,10 @@ beforeEach(function () {
 
 it('resolves the underlying Sync service', function () {
     expect(SyncFacade::getFacadeRoot())->toBeInstanceOf(Sync::class)
-        ->and(SyncFacade::getFacadeRoot())->toBe(app(Sync::class));
+        ->and(SyncFacade::getFacadeRoot())->toBe(resolve(Sync::class));
 });
 
 it('delegates calls to the underlying Sync singleton', function () {
     expect(SyncFacade::remotes()->keys()->all())->toBe(['staging'])
-        ->and(SyncFacade::remote('staging'))->toEqual(app(Sync::class)->remote('staging'));
+        ->and(SyncFacade::remote('staging'))->toEqual(resolve(Sync::class)->remote('staging'));
 });

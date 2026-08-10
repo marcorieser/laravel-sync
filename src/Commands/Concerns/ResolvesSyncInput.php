@@ -56,11 +56,11 @@ trait ResolvesSyncInput
 
             $backup = $this->resolveBackup($operation) ? Backup::now($sync->backupDir()) : null;
 
-            if ($backup !== null) {
+            if ($backup instanceof Backup) {
                 $sync->guardBackupNotNested($backup, $recipes);
             }
 
-            return new PendingSync($operation, $remote, $recipes, $this->resolveOptions($backup !== null), $backup);
+            return new PendingSync($operation, $remote, $recipes, $this->resolveOptions($backup instanceof Backup), $backup);
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
 
@@ -70,7 +70,7 @@ trait ResolvesSyncInput
 
     protected function syncService(): Sync
     {
-        return app(Sync::class);
+        return resolve(Sync::class);
     }
 
     protected function resolveOperation(): Operation

@@ -59,7 +59,7 @@ final readonly class PendingSync
      */
     public function backups(): Collection
     {
-        if ($this->backup === null) {
+        if (! $this->backup instanceof Backup) {
             return collect();
         }
 
