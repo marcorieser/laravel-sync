@@ -171,6 +171,19 @@ it('refuses to back up when the backup directory only differs by case from the r
     );
 })->throws(SyncException::class);
 
+it('refuses to back up when a redundant ".." segment hides that the backup directory resolves inside a recipe path', function () {
+    $sync = resolve(Sync::class);
+    $backup = new Backup('storage/tmp/../app/assets/.sync-backups', '2026-07-24_134530');
+
+    $sync->prepare(
+        Operation::Pull,
+        $sync->remote('staging'),
+        collect([$sync->recipe('assets')]),
+        new RsyncOptions([]),
+        $backup,
+    );
+})->throws(SyncException::class);
+
 it('allows backing up when the backup directory is outside the recipe paths', function () {
     $sync = resolve(Sync::class);
     $backup = new Backup('.sync-backups', '2026-07-24_134530');

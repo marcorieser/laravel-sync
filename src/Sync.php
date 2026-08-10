@@ -153,7 +153,32 @@ class Sync
             throw SyncException::backupDirUnsafe($dir);
         }
 
+        [$segments, $escaped] = $this->collapseDotSegments($normalized);
+
+        if ($escaped || $segments === []) {
+            throw SyncException::backupDirUnsafe($dir);
+        }
+
+        $this->guardBackupDirNotEscapingRootOnDisk($dir, $segments);
+    }
+
+    /**
+     * Lexically collapse "." and ".." segments out of an already-`/`-normalized path,
+     * without touching the filesystem.
+     *
+     * Shared by `guardBackupDirSafe()` (which rejects the path outright if a ".."
+     * pops above where collapsing started — reported via `$escaped`) and
+     * `guardBackupNotNested()` (which has nothing to reject at this stage: `$dir` was
+     * already run through `guardBackupDirSafe()`, so a "true" `$escaped` here can't
+     * happen — it just needs the real relative path a redundant ".." segment would
+     * otherwise hide from a plain string comparison).
+     *
+     * @return array{0: array<int, string>, 1: bool}
+     */
+    private function collapseDotSegments(string $normalized): array
+    {
         $segments = [];
+        $escaped = false;
 
         foreach (explode('/', $normalized) as $segment) {
             if ($segment === '') {
@@ -166,7 +191,9 @@ class Sync
 
             if ($segment === '..') {
                 if ($segments === []) {
-                    throw SyncException::backupDirUnsafe($dir);
+                    $escaped = true;
+
+                    continue;
                 }
 
                 array_pop($segments);
@@ -177,11 +204,7 @@ class Sync
             $segments[] = $segment;
         }
 
-        if ($segments === []) {
-            throw SyncException::backupDirUnsafe($dir);
-        }
-
-        $this->guardBackupDirNotEscapingRootOnDisk($dir, $segments);
+        return [$segments, $escaped];
     }
 
     /**
@@ -350,11 +373,18 @@ class Sync
      * path being backed up — otherwise a pull's backup pass would copy the (growing)
      * backup folder into itself.
      *
+     * Compares `$backup->dir` dot-collapsed, not as the raw configured string: a
+     * redundant ".." segment (e.g. "storage/tmp/../app/assets/.sync-backups") resolves
+     * on disk to a path nested inside a recipe directory, but a plain string comparison
+     * against the uncollapsed literal wouldn't recognize it as such and would let it
+     * through.
+     *
      * @param  Collection<int, Recipe>  $recipes
      */
     public function guardBackupNotNested(Backup $backup, Collection $recipes): void
     {
-        $backupPath = $this->normalizePath(rtrim(base_path($backup->dir), '/'));
+        [$backupSegments] = $this->collapseDotSegments(str_replace('\\', '/', $backup->dir));
+        $backupPath = $this->normalizePath(rtrim(base_path(implode('/', $backupSegments)), '/'));
 
         foreach ($this->resolvedPaths($recipes) as $path) {
             $recipePath = $this->normalizePath(rtrim(base_path($path), '/'));
