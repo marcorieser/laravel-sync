@@ -155,35 +155,26 @@ class Sync
      * directory and refuse it if that real, symlink-resolved path lies outside the
      * project root.
      *
+     * The upward walk is guaranteed to terminate: `$ancestor` starts as a subpath of
+     * `base_path()`, which the running app's own root, so it always exists and is
+     * reached at the latest. `realpath()` is trusted to succeed once `file_exists()`
+     * has just confirmed the path is there.
+     *
      * @param  array<int, string>  $segments
      */
     private function guardBackupDirNotEscapingRootOnDisk(string $dir, array $segments): void
     {
-        $root = realpath(base_path());
-
-        if ($root === false) {
-            return;
-        }
-
         $ancestor = base_path(implode('/', $segments));
 
         while (! file_exists($ancestor)) {
-            $parent = dirname($ancestor);
-
-            if ($parent === $ancestor) {
-                return;
-            }
-
-            $ancestor = $parent;
+            $ancestor = dirname($ancestor);
         }
 
+        $root = realpath(base_path());
         $real = realpath($ancestor);
 
-        if ($real === false) {
-            return;
-        }
-
-        if (! str_starts_with($this->normalizePath($real).'/', $this->normalizePath($root).'/')) {
+        if ($root !== false && $real !== false
+            && ! str_starts_with($this->normalizePath($real).'/', $this->normalizePath($root).'/')) {
             throw SyncException::backupDirUnsafe($dir);
         }
     }
