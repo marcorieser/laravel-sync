@@ -299,24 +299,22 @@ it('does not follow a symlink when summing a backup folder\'s size', function ()
     }
 });
 
-it('does not let a glob metacharacter in backup_dir widen which folders get listed', function () {
-    $prefix = 'glob-test-'.Str::random(8);
+it('treats a glob metacharacter in backup_dir as a literal character, not a wildcard', function () {
+    // "*" and "?" are illegal in a filename on Windows, so this uses "[" / "]" — valid
+    // everywhere — to stay portable across the CI matrix. Left unescaped, glob() would
+    // read "[literal]" as a bracket expression (matching a single char from the set
+    // "l,i,t,e,r,a") instead of the literal 9-character folder name, and silently find
+    // nothing.
+    $dir = 'glob-test-'.Str::random(8).'[literal]';
 
-    // The literal directory the configured backup_dir actually names (the trailing
-    // "*" is part of its real name here, not intended as a wildcard by the user).
-    File::ensureDirectoryExists(base_path("{$prefix}*/2026-07-24_134530"));
-
-    // An unrelated sibling that an *unescaped* "{$prefix}*" glob pattern would also
-    // match, even though it was never meant to be part of backup_dir.
-    File::ensureDirectoryExists(base_path("{$prefix}-sibling/2026-07-25_090000"));
+    File::ensureDirectoryExists(base_path("{$dir}/2026-07-24_134530"));
 
     try {
-        config(['sync.backup_dir' => "{$prefix}*"]);
+        config(['sync.backup_dir' => $dir]);
 
         expect(resolve(Sync::class)->backups()->pluck('name')->all())->toBe(['2026-07-24_134530']);
     } finally {
-        File::deleteDirectory(base_path("{$prefix}*"));
-        File::deleteDirectory(base_path("{$prefix}-sibling"));
+        File::deleteDirectory(base_path($dir));
     }
 });
 
