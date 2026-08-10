@@ -56,11 +56,11 @@ trait ResolvesSyncInput
 
             $backup = $this->resolveBackup($operation) ? Backup::now($sync->backupDir()) : null;
 
-            if ($backup !== null) {
+            if ($backup instanceof Backup) {
                 $sync->guardBackupNotNested($backup, $recipes);
             }
 
-            return new PendingSync($operation, $remote, $recipes, $this->resolveOptions($backup !== null), $backup);
+            return new PendingSync($operation, $remote, $recipes, $this->resolveOptions($backup instanceof Backup), $backup);
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
 
@@ -70,7 +70,7 @@ trait ResolvesSyncInput
 
     protected function syncService(): Sync
     {
-        return app(Sync::class);
+        return resolve(Sync::class);
     }
 
     protected function resolveOperation(): Operation
@@ -208,6 +208,7 @@ trait ResolvesSyncInput
      * and fail with `$missingException` when it's still not a non-empty string.
      *
      * @param  array<int|string, string>  $options
+     * @param  Closure(): SyncException  $missingException
      */
     private function resolveArgumentOrPrompt(string $argument, string $label, array $options, Closure $missingException): string
     {

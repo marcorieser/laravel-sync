@@ -45,7 +45,7 @@ final readonly class Remote
      */
     public function path(string $relative): string
     {
-        $fullPath = self::collapseSlashes("{$this->root}/{$relative}");
+        $fullPath = $this->collapseSlashes("{$this->root}/{$relative}");
 
         if ($this->isLocal()) {
             return $fullPath;
@@ -60,7 +60,7 @@ final readonly class Remote
      * Rsync paths (local or remote) always use `/`, regardless of the control
      * machine's OS, so this can't reuse Laravel's OS-aware `join_paths()`.
      */
-    private static function collapseSlashes(string $path): string
+    private function collapseSlashes(string $path): string
     {
         return preg_replace('#/+#', '/', $path) ?? $path;
     }

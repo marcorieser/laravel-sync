@@ -8,12 +8,14 @@ use Illuminate\Support\ServiceProvider;
 use MarcoRieser\Sync\Commands\SyncCommand;
 use MarcoRieser\Sync\Commands\SyncCommandsCommand;
 use MarcoRieser\Sync\Commands\SyncListCommand;
+use Override;
 
 class SyncServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
      */
+    #[Override]
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/sync.php', 'sync');

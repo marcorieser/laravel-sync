@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Process;
 use MarcoRieser\Sync\Rsync\RsyncOptions;
 
@@ -147,7 +147,7 @@ it('allows pulling from a read-only remote', function () {
 });
 
 it('backs up local files before a real pull when --backup is passed', function () {
-    $this->travelTo(Carbon::parse('2026-07-24 13:45:30'));
+    $this->travelTo(Date::parse('2026-07-24 13:45:30'));
 
     $this->artisan('sync', [
         'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,

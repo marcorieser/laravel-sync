@@ -22,14 +22,19 @@
         "laravel/prompts": "^0.3"
     },
     "require-dev": {
+        "driftingly/rector-laravel": "^2.2",
         "larastan/larastan": "^3.9",
-        "laravel/pint": "^1.29",
         "laravel/pao": "^1.0",
+        "laravel/pint": "^1.29",
         "orchestra/testbench": "^10.0||^11.0",
         "pestphp/pest": "^4.6",
         "pestphp/pest-plugin-laravel": "^4.1",
         "pestphp/pest-plugin-type-coverage": "^4.0",
-        "phpstan/extension-installer": "^1.4"
+        "phpstan/extension-installer": "^1.4",
+        "rector/rector": "^2.5.7"
+    },
+    "conflict": {
+        "phpstan/phpstan": ">=2.2.6"
     },
     "autoload": {
         "psr-4": {
@@ -69,6 +74,12 @@
         "analyse": [
             "vendor/bin/phpstan analyse"
         ],
+        "refactor": [
+            "vendor/bin/rector process"
+        ],
+        "refactor:check": [
+            "vendor/bin/rector process --dry-run"
+        ],
         "test:types": [
             "vendor/bin/pest --type-coverage --min=100"
         ],
@@ -81,6 +92,7 @@
         "test": [
             "@analyse",
             "@lint:check",
+            "@refactor:check",
             "@test:types",
             "@test:unit"
         ],

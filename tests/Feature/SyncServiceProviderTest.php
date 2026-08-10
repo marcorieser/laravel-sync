@@ -18,7 +18,7 @@ it('merges the package config', function () {
 });
 
 it('registers the sync service as a singleton', function () {
-    expect(app(Sync::class))->toBe(app(Sync::class));
+    expect(resolve(Sync::class))->toBe(resolve(Sync::class));
 });
 
 it('registers the sync, sync:list, and sync:commands artisan commands', function () {

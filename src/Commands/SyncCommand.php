@@ -6,6 +6,7 @@ namespace MarcoRieser\Sync\Commands;
 
 use Illuminate\Console\Command;
 use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
+use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\Recipe;
 use MarcoRieser\Sync\Enums\Operation;
 use MarcoRieser\Sync\PendingSync;
@@ -38,7 +39,7 @@ class SyncCommand extends Command
      */
     public function handle(): int
     {
-        if (($pending = $this->resolvePendingSync()) === null) {
+        if (! ($pending = $this->resolvePendingSync()) instanceof PendingSync) {
             return self::FAILURE;
         }
 
@@ -53,7 +54,7 @@ class SyncCommand extends Command
         $shouldStreamOutput = $dry || $pending->options->producesOutput();
         $onOutput = $shouldStreamOutput ? fn (string $type, string $output) => $this->output->write($output) : null;
 
-        if ($pending->backup !== null) {
+        if ($pending->backup instanceof Backup) {
             $this->comment('Backing up local files...');
 
             if (! $pending->runBackup($onOutput)) {

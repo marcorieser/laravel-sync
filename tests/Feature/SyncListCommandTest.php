@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use MarcoRieser\Sync\Rsync\RsyncOptions;
 
 beforeEach(function () {
@@ -36,7 +36,7 @@ it('fails with a friendly error for an unknown remote', function () {
 });
 
 it('lists the backup row before the pull row when --backup is passed', function () {
-    $this->travelTo(Carbon::parse('2026-07-24 13:45:30'));
+    $this->travelTo(Date::parse('2026-07-24 13:45:30'));
 
     $this->artisan('sync:list', [
         'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,

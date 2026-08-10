@@ -6,6 +6,7 @@ namespace MarcoRieser\Sync\Commands;
 
 use Illuminate\Console\Command;
 use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
+use MarcoRieser\Sync\PendingSync;
 use Stringable;
 
 class SyncCommandsCommand extends Command
@@ -34,7 +35,7 @@ class SyncCommandsCommand extends Command
      */
     public function handle(): int
     {
-        if (($pending = $this->resolvePendingSync()) === null) {
+        if (! ($pending = $this->resolvePendingSync()) instanceof PendingSync) {
             return self::FAILURE;
         }
 

@@ -1,6 +1,9 @@
 parameters:
-    level: 7
+    level: max
     paths:
         - src
         - config
+    # tests/ stays out: Pest 4 has no PHPStan extension for test closures, so every
+    # `$this->...` in a test reports "Using $this outside a class". The fix,
+    # pestphp/pest-plugin-phpstan, is 5.x-only and requires php ^8.4.
     tmpDir: build/phpstan

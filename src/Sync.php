@@ -71,7 +71,9 @@ class Sync
      */
     public function backupDir(): string
     {
-        return (string) config('sync.backup_dir', '.sync-backups');
+        $value = config('sync.backup_dir', '.sync-backups');
+
+        return is_string($value) ? $value : '.sync-backups';
     }
 
     /**
@@ -111,7 +113,7 @@ class Sync
         $this->guardReadOnly($operation, $remote);
         $this->guardNotSamePath($remote, $recipes);
 
-        if ($backup !== null && $operation === Operation::Pull) {
+        if ($backup instanceof Backup && $operation === Operation::Pull) {
             $this->guardBackupNotNested($backup, $recipes);
         }
 
@@ -140,9 +142,9 @@ class Sync
      */
     public function guardNotSamePath(Remote $remote, Collection $recipes): void
     {
-        foreach (self::resolvedPaths($recipes) as $path) {
-            $remotePath = self::normalizePath($remote->path($path));
-            $localPath = self::normalizePath(base_path($path));
+        foreach ($this->resolvedPaths($recipes) as $path) {
+            $remotePath = $this->normalizePath($remote->path($path));
+            $localPath = $this->normalizePath(base_path($path));
 
             if ($remotePath === $localPath) {
                 throw SyncException::samePath($path);
@@ -159,10 +161,10 @@ class Sync
      */
     public function guardBackupNotNested(Backup $backup, Collection $recipes): void
     {
-        $backupPath = self::normalizePath(rtrim(base_path($backup->dir), '/'));
+        $backupPath = $this->normalizePath(rtrim(base_path($backup->dir), '/'));
 
-        foreach (self::resolvedPaths($recipes) as $path) {
-            $recipePath = self::normalizePath(rtrim(base_path($path), '/'));
+        foreach ($this->resolvedPaths($recipes) as $path) {
+            $recipePath = $this->normalizePath(rtrim(base_path($path), '/'));
 
             if (str_starts_with($backupPath.'/', $recipePath.'/')) {
                 throw SyncException::backupDirNested($backup->dir, $path);
@@ -176,7 +178,7 @@ class Sync
      * @param  Collection<int, Recipe>  $recipes
      * @return Collection<int, string>
      */
-    private static function resolvedPaths(Collection $recipes): Collection
+    private function resolvedPaths(Collection $recipes): Collection
     {
         return $recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique();
     }
@@ -190,7 +192,7 @@ class Sync
      * folded too: macOS (APFS) and Windows (NTFS) are case-insensitive by default, so
      * two paths differing only by case can be the same directory on disk.
      */
-    private static function normalizePath(string $path): string
+    private function normalizePath(string $path): string
     {
         return strtolower(str_replace('\\', '/', $path));
     }
