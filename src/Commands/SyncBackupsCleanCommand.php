@@ -17,6 +17,10 @@ use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\table;
 
+/**
+ * Doesn't use `ResolvesSyncInput` — it resolves no operation, remote, recipes, or
+ * rsync options, so that trait's shape doesn't apply here.
+ */
 class SyncBackupsCleanCommand extends Command
 {
     use ConfirmsUnlessSkipped;
@@ -42,8 +46,6 @@ class SyncBackupsCleanCommand extends Command
         $sync = resolve(Sync::class);
 
         try {
-            $sync->guardBackupDirSafe();
-
             $backups = $sync->backups();
 
             if ($backups->isEmpty()) {
@@ -99,7 +101,7 @@ class SyncBackupsCleanCommand extends Command
             required: true,
         );
 
-        return $backups->filter(fn (BackupFolder $folder) => in_array($folder->name, $names, true))->values();
+        return $backups->whereIn('name', $names, true)->values();
     }
 
     /**

@@ -80,6 +80,18 @@ class Sync
     }
 
     /**
+     * Start a backup, guarding that `backup_dir` is safe to write into first — the
+     * single place a `Backup` gets created from config, so that guard can't be skipped
+     * by a caller forgetting to run it separately.
+     */
+    public function startBackup(): Backup
+    {
+        $this->guardBackupDirSafe();
+
+        return Backup::now($this->backupDir());
+    }
+
+    /**
      * List the timestamped backup folders on disk under `backup_dir`, newest first.
      *
      * Not memoized with `once()` like `remotes()`/`recipes()`/`defaultOptions()` — this
@@ -89,6 +101,8 @@ class Sync
      */
     public function backups(): Collection
     {
+        $this->guardBackupDirSafe();
+
         $dir = base_path($this->backupDir());
 
         // `glob()`, not `File::isDirectory()` + `File::directories()`: that two-step

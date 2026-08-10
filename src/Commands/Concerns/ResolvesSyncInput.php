@@ -57,8 +57,7 @@ trait ResolvesSyncInput
             $backup = null;
 
             if ($this->resolveBackup($operation)) {
-                $sync->guardBackupDirSafe();
-                $backup = Backup::now($sync->backupDir());
+                $backup = $sync->startBackup();
                 $sync->guardBackupNotNested($backup, $recipes);
             }
 
