@@ -115,8 +115,12 @@ class Sync
         // that never throws, returning an empty list either way.
         $directories = glob("{$dir}/*", GLOB_ONLYDIR) ?: [];
 
+        // Excludes symlinks even though `GLOB_ONLYDIR` (and thus `is_dir()`) follows
+        // them: a symlinked entry here would let `sync:backups-clean` hand
+        // `File::deleteDirectory()` a path whose *contents* live outside `backup_dir`,
+        // silently wiping whatever the link points at instead of a real backup folder.
         return collect($directories)
-            ->filter(fn (string $path) => BackupFolder::isValidName(basename($path)))
+            ->filter(fn (string $path) => ! is_link($path) && BackupFolder::isValidName(basename($path)))
             ->map(fn (string $path) => BackupFolder::fromPath($path, $this->directorySize($path)))
             ->sortByDesc(fn (BackupFolder $folder) => $folder->name)
             ->values();
@@ -130,18 +134,28 @@ class Sync
      * own `dir`, which could differ from the currently configured value.
      *
      * First resolves the directory lexically (no filesystem access, so this works even
-     * before the directory exists) and refuses it when it's blank, resolves to the
-     * project root itself, or ever steps above the root via a ".." segment. Then, if the
-     * directory (or one of its parents) already exists, resolves it for real and refuses
-     * it if a symlink leads outside the project (or straight at the project root) — the
-     * lexical check alone can't catch a `backup_dir` that looks like a normal, contained
-     * relative path but is actually a symlink to somewhere else.
+     * before the directory exists) and refuses it when it's blank, absolute (a leading
+     * "/" or a Windows drive letter like "C:"), resolves to the project root itself, or
+     * ever steps above the root via a ".." segment. `backup_dir` is documented as
+     * relative to the project root, so the absolute case is refused explicitly — without
+     * it, a path like "/tmp" would have its leading slash silently dropped by the
+     * segment parser below and be misread as the relative path "tmp" instead of being
+     * rejected. Then, if the directory (or one of its parents) already exists, resolves
+     * it for real and refuses it if a symlink leads outside the project (or straight at
+     * the project root) — the lexical check alone can't catch a `backup_dir` that looks
+     * like a normal, contained relative path but is actually a symlink to somewhere else.
      */
     public function guardBackupDirSafe(string $dir): void
     {
+        $normalized = str_replace('\\', '/', trim($dir));
+
+        if ($normalized !== '' && ($normalized[0] === '/' || preg_match('#^[A-Za-z]:#', $normalized) === 1)) {
+            throw SyncException::backupDirUnsafe($dir);
+        }
+
         $segments = [];
 
-        foreach (explode('/', str_replace('\\', '/', trim($dir))) as $segment) {
+        foreach (explode('/', $normalized) as $segment) {
             if ($segment === '') {
                 continue;
             }
@@ -223,6 +237,12 @@ class Sync
      * `glob()` instead of `File::directories()`. `glob()` on a missing directory
      * returns nothing rather than throwing, so a vanished folder naturally sizes to 0
      * with no separate check needed.
+     *
+     * Never follows a symlinked entry: `rsync --archive` (how a backup is populated)
+     * preserves symlinks from the source tree verbatim, so a backup folder can contain
+     * one pointing back at an ancestor of itself — recursing into it would re-walk the
+     * same real directories over and over (inflating the reported size) until the
+     * built-up path finally exceeds the OS path-length limit.
      */
     private function directorySize(string $path): int
     {
@@ -236,6 +256,10 @@ class Sync
             }
 
             if ($name === '..') {
+                continue;
+            }
+
+            if (is_link($entry)) {
                 continue;
             }
 

@@ -241,6 +241,51 @@ it('sums hidden files into a backup folder\'s size', function () {
     expect(resolve(Sync::class)->backups()->first()->size)->toBe(150);
 });
 
+it('ignores a symlinked folder even when its name is a valid backup timestamp', function () {
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+
+    $target = sys_get_temp_dir().'/sync-outside-'.Str::random(8);
+    File::ensureDirectoryExists($target);
+    File::put("{$target}/important.txt", 'do not delete me');
+
+    $linkPath = "{$this->backupPath}/2026-07-25_090000";
+
+    if (! @symlink($target, $linkPath)) {
+        File::deleteDirectory($target);
+        $this->markTestSkipped('This environment does not support creating symlinks.');
+    }
+
+    try {
+        expect(resolve(Sync::class)->backups()->pluck('name')->all())->toBe(['2026-07-24_134530']);
+    } finally {
+        @unlink($linkPath);
+        File::deleteDirectory($target);
+    }
+});
+
+it('does not follow a symlink when summing a backup folder\'s size', function () {
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+    File::put("{$this->backupPath}/2026-07-24_134530/visible.txt", str_repeat('a', 100));
+
+    $target = sys_get_temp_dir().'/sync-outside-'.Str::random(8);
+    File::ensureDirectoryExists($target);
+    File::put("{$target}/huge.txt", str_repeat('b', 1000));
+
+    $linkPath = "{$this->backupPath}/2026-07-24_134530/linked";
+
+    if (! @symlink($target, $linkPath)) {
+        File::deleteDirectory($target);
+        $this->markTestSkipped('This environment does not support creating symlinks.');
+    }
+
+    try {
+        expect(resolve(Sync::class)->backups()->first()->size)->toBe(100);
+    } finally {
+        @unlink($linkPath);
+        File::deleteDirectory($target);
+    }
+});
+
 it('does not memoize the backup list, so it reflects a delete made earlier in the same run', function () {
     $sync = resolve(Sync::class);
 
@@ -272,6 +317,14 @@ it('refuses a backup directory that steps above the project root', function () {
 
 it('refuses a backup directory that steps above the root before coming back down', function () {
     resolve(Sync::class)->guardBackupDirSafe('storage/../../outside');
+})->throws(SyncException::class);
+
+it('refuses an absolute unix-style backup directory', function () {
+    resolve(Sync::class)->guardBackupDirSafe('/tmp');
+})->throws(SyncException::class);
+
+it('refuses an absolute windows-style backup directory', function () {
+    resolve(Sync::class)->guardBackupDirSafe('C:\\Windows\\Temp');
 })->throws(SyncException::class);
 
 it('refuses a backup directory that is a symlink pointing straight at the project root', function () {
