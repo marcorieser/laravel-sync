@@ -49,3 +49,61 @@ it('keeps a literal "0" flag instead of treating it as empty', function () {
 
     expect($options->flags)->toBe(['--archive', '0']);
 });
+
+it('strips rsync\'s own backup flags when backup is true', function () {
+    $options = RsyncOptions::resolve(
+        ['--archive', '--backup', '--backup-dir=/tmp/old'],
+        dry: false,
+        verbose: false,
+        backup: true,
+    );
+
+    expect($options->flags)->toBe(['--archive']);
+});
+
+it('keeps rsync\'s own backup flags when backup is false', function () {
+    $options = RsyncOptions::resolve(['--archive', '--backup'], dry: false, verbose: false, backup: false);
+
+    expect($options->flags)->toBe(['--archive', '--backup']);
+});
+
+it('strips rsync\'s short -b backup flag when backup is true', function () {
+    $options = RsyncOptions::resolve(['--archive', '-b'], dry: false, verbose: false, backup: true);
+
+    expect($options->flags)->toBe(['--archive']);
+});
+
+it('strips only the "b" from a short-option cluster, keeping its other flags', function () {
+    $options = RsyncOptions::resolve(['-avhb'], dry: false, verbose: false, backup: true);
+
+    expect($options->flags)->toBe(['-avh']);
+});
+
+it('keeps the short -b flag when backup is false', function () {
+    $options = RsyncOptions::resolve(['-b'], dry: false, verbose: false, backup: false);
+
+    expect($options->flags)->toBe(['-b']);
+});
+
+it('strips the two-token --backup-dir form, including its value, when backup is true', function () {
+    $options = RsyncOptions::resolve(
+        ['--archive', '--backup-dir', '/tmp/old'],
+        dry: false,
+        verbose: false,
+        backup: true,
+    );
+
+    expect($options->flags)->toBe(['--archive']);
+});
+
+it('keeps the two-token --backup-dir form when backup is false', function () {
+    $options = RsyncOptions::resolve(['--backup-dir', '/tmp/old'], dry: false, verbose: false, backup: false);
+
+    expect($options->flags)->toBe(['--backup-dir', '/tmp/old']);
+});
+
+it('drops a trailing --backup-dir with no value instead of erroring', function () {
+    $options = RsyncOptions::resolve(['--archive', '--backup-dir'], dry: false, verbose: false, backup: true);
+
+    expect($options->flags)->toBe(['--archive']);
+});

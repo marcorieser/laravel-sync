@@ -31,7 +31,7 @@ composer require marcorieser/laravel-sync
 php artisan vendor:publish --tag="laravel-sync-config"
 ```
 
-This publishes `config/sync.php` with three keys: `remotes`, `recipes`, `options`.
+This publishes `config/sync.php` with four keys: `remotes`, `recipes`, `options`, `backup_dir`.
 
 ### 2. Define remotes
 
@@ -76,7 +76,15 @@ together:
 
 Used whenever a command doesn't receive explicit `-O`/`--option` flags.
 
-### 5. Run a sync
+### 5. Set the backup directory (optional)
+
+```php
+'backup_dir' => '.sync-backups',
+```
+
+Relative to the app's root. Used when `--backup` is passed on a real pull (see step 6).
+
+### 6. Run a sync
 
 ```bash
 php artisan sync {push|pull} {remote} {recipe...} [options]
@@ -88,9 +96,16 @@ prompting. A real (non-dry) sync asks for confirmation before running unless `--
 set.
 
 Options: `-O`/`--option=*` (override default rsync options, repeatable), `-D`/`--dry` (dry run with real-time
-output), `-A`/`--all` (sync every recipe), `-v` (stream real-time output).
+output), `-A`/`--all` (sync every recipe), `-B`/`--backup` (back up local files before a real pull), `-v`
+(stream real-time output).
 
-### 6. Preview before running (optional)
+`--backup` only applies to a real (non-dry) `pull` — a push or a dry run silently ignores it, since only a
+pull overwrites local files. Before the pull runs, the local files of the selected recipes are copied into
+`base_path("{backup_dir}/{timestamp}/...")` via a fixed `rsync --archive --relative` pass (independent of the
+sync's own rsync options); if that copy fails, the pull doesn't run. Pulling interactively without `--backup`
+prompts "Back up the local files before pulling?" before the rsync-options prompt.
+
+### 7. Preview before running (optional)
 
 - `php artisan sync:list {push|pull} {remote} {recipe...}` — table of origin, target, options, and port
 - `php artisan sync:commands {push|pull} {remote} {recipe...}` — prints the exact `rsync` command(s) that would run
@@ -116,6 +131,9 @@ php artisan sync push production assets --option=-avh --option=--delete
 # Dry-run a pull with real-time output
 php artisan sync pull staging assets --dry
 
+# Pull "assets" from "staging", backing up the local files first
+php artisan sync pull staging assets --backup
+
 # Sync every recipe non-interactively (e.g. in a deploy script)
 php artisan sync push production --all --no-interaction
 
@@ -125,6 +143,6 @@ php artisan sync:commands push production assets
 
 ## Anti-patterns
 
-- do not document package internals (DTOs, the `Sync` service, `RsyncCommand`/`RsyncOptions` value objects) here; keep the skill focused on adoption in Laravel apps
+- do not document package internals (DTOs, the `Sync` service, `RsyncCommand`/`RsyncOptions`/`BackupCommand` value objects) here; keep the skill focused on adoption in Laravel apps
 - do not suggest managing SSH keys, passwords, or host verification through this package — it relies entirely on the host machine's existing `ssh` setup
 - do not add a `push`/`pull` for a `read_only` remote as a documented workaround; it is a deliberate guard

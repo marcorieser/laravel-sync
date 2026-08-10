@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarcoRieser\Sync;
 
 use Illuminate\Support\Collection;
+use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\Recipe;
 use MarcoRieser\Sync\Data\Remote;
 use MarcoRieser\Sync\Enums\Operation;
@@ -66,6 +67,14 @@ class Sync
     }
 
     /**
+     * Get the configured backup directory, relative to the project's root.
+     */
+    public function backupDir(): string
+    {
+        return (string) config('sync.backup_dir', '.sync-backups');
+    }
+
+    /**
      * Filter a mixed array down to its string values, reindexed.
      *
      * @param  array<array-key, mixed>  $values
@@ -97,12 +106,16 @@ class Sync
      *
      * @param  Collection<int, Recipe>  $recipes
      */
-    public function prepare(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options): PendingSync
+    public function prepare(Operation $operation, Remote $remote, Collection $recipes, RsyncOptions $options, ?Backup $backup = null): PendingSync
     {
         $this->guardReadOnly($operation, $remote);
         $this->guardNotSamePath($remote, $recipes);
 
-        return new PendingSync($operation, $remote, $recipes, $options);
+        if ($backup !== null && $operation === Operation::Pull) {
+            $this->guardBackupNotNested($backup, $recipes);
+        }
+
+        return new PendingSync($operation, $remote, $recipes, $options, $backup);
     }
 
     /**
@@ -127,16 +140,58 @@ class Sync
      */
     public function guardNotSamePath(Remote $remote, Collection $recipes): void
     {
-        foreach ($recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique() as $path) {
-            // On Windows, a local remote's `root` (typically base_path()) carries
-            // backslashes that Remote::path() doesn't normalize, only base_path() here
-            // does — so both sides need normalizing before comparing, not just one.
-            $remotePath = str_replace('\\', '/', $remote->path($path));
-            $localPath = str_replace('\\', '/', base_path($path));
+        foreach (self::resolvedPaths($recipes) as $path) {
+            $remotePath = self::normalizePath($remote->path($path));
+            $localPath = self::normalizePath(base_path($path));
 
             if ($remotePath === $localPath) {
                 throw SyncException::samePath($path);
             }
         }
+    }
+
+    /**
+     * Guard against the backup directory being the same as, or nested inside, a recipe
+     * path being backed up — otherwise a pull's backup pass would copy the (growing)
+     * backup folder into itself.
+     *
+     * @param  Collection<int, Recipe>  $recipes
+     */
+    public function guardBackupNotNested(Backup $backup, Collection $recipes): void
+    {
+        $backupPath = self::normalizePath(rtrim(base_path($backup->dir), '/'));
+
+        foreach (self::resolvedPaths($recipes) as $path) {
+            $recipePath = self::normalizePath(rtrim(base_path($path), '/'));
+
+            if (str_starts_with($backupPath.'/', $recipePath.'/')) {
+                throw SyncException::backupDirNested($backup->dir, $path);
+            }
+        }
+    }
+
+    /**
+     * Get every recipe path, flattened and de-duplicated.
+     *
+     * @param  Collection<int, Recipe>  $recipes
+     * @return Collection<int, string>
+     */
+    private static function resolvedPaths(Collection $recipes): Collection
+    {
+        return $recipes->flatMap(fn (Recipe $recipe) => $recipe->paths)->unique();
+    }
+
+    /**
+     * Normalize a path for cross-platform, case-insensitive-filesystem-safe comparison.
+     *
+     * On Windows, a local remote's `root` (typically `base_path()`) carries backslashes
+     * that `Remote::path()` doesn't normalize, only `base_path()` does — so any path
+     * compared against another needs normalizing first, not just one side. Case is
+     * folded too: macOS (APFS) and Windows (NTFS) are case-insensitive by default, so
+     * two paths differing only by case can be the same directory on disk.
+     */
+    private static function normalizePath(string $path): string
+    {
+        return strtolower(str_replace('\\', '/', $path));
     }
 }

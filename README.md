@@ -96,6 +96,18 @@ The default `rsync` options, used whenever `--option` isn't passed on the comman
 ],
 ```
 
+### Backup Directory
+
+Relative to your project's root. When `--backup` is passed on a real pull, the local files
+of the selected recipes are copied here, into a timestamped folder, before the pull runs:
+
+```php
+'backup_dir' => '.sync-backups',
+```
+
+Each backed-up pull adds another timestamped folder; nothing prunes old ones automatically.
+Add `backup_dir` to your `.gitignore` and clean it out periodically.
+
 ## Usage
 
 ```bash
@@ -113,6 +125,7 @@ php artisan sync {push|pull} {remote} {recipe...} [options]
 | `-O`, `--option=*` | Override the default rsync options. Repeatable. |
 | `-D`, `--dry` | Perform a dry run, with real-time output. |
 | `-A`, `--all` | Sync every configured recipe. |
+| `-B`, `--backup` | Back up local files to `backup_dir` before a real pull. |
 | `-v` | Show real-time output while syncing (progress, stats, ...). |
 
 Any argument you omit is prompted for interactively (operation, remote, recipes, and rsync options), unless
@@ -121,6 +134,12 @@ prompting — and any real (non-dry) sync runs immediately without a confirmatio
 
 Use `--dry` for a dry run, not `--option=--dry-run` — only `--dry` skips the confirmation prompt, forces
 real-time output, and reports it as a dry run instead of a completed sync.
+
+`--backup` only applies to a real (non-dry) pull — a pull is the only operation that overwrites your local
+files, so a push (or a dry run) ignores it. Before the pull runs, the local files of the selected recipes
+are copied into a timestamped folder under `backup_dir` (e.g. `.sync-backups/2026-07-24_134530/`), using a
+fixed `--archive --relative` copy independent of your chosen rsync options. If you don't pass `--backup` and
+you're pulling interactively, you're asked whether to back up before you're asked which rsync options to use.
 
 ### Examples
 
@@ -133,6 +152,9 @@ php artisan sync push production assets --option=-avh --option=--delete
 
 # Preview a pull as a dry run, with real-time output
 php artisan sync pull staging assets --dry
+
+# Back up local "assets" files before pulling
+php artisan sync pull staging assets --backup
 
 # Sync every recipe
 php artisan sync push production --all

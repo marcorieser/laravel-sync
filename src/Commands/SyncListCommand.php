@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MarcoRieser\Sync\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Support\Arrayable;
 use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
-use MarcoRieser\Sync\Rsync\RsyncCommand;
 
 use function Laravel\Prompts\table;
 
@@ -23,7 +23,8 @@ class SyncListCommand extends Command
         {recipe?* : The recipes defining the paths to sync}
         {--O|option=* : Override the default rsync options}
         {--A|all : Sync all recipes}
-        {--D|dry : Preview the options used for a dry run}';
+        {--D|dry : Preview the options used for a dry run}
+        {--B|backup : Preview the backup that would run before a real pull}';
 
     /**
      * The command description.
@@ -39,11 +40,13 @@ class SyncListCommand extends Command
             return self::FAILURE;
         }
 
-        $commands = $pending->commands();
+        $rows = $pending->backups()
+            ->concat($pending->commands())
+            ->map(fn (Arrayable $command) => array_values($command->toArray()));
 
         table(
             headers: ['Origin', 'Target', 'Options', 'Port'],
-            rows: $commands->map(fn (RsyncCommand $command) => array_values($command->toArray()))->all(),
+            rows: $rows->all(),
         );
 
         return self::SUCCESS;

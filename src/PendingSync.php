@@ -8,14 +8,23 @@ use Closure;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Process;
+use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\Recipe;
 use MarcoRieser\Sync\Data\Remote;
 use MarcoRieser\Sync\Enums\Operation;
+use MarcoRieser\Sync\Rsync\BackupCommand;
 use MarcoRieser\Sync\Rsync\RsyncCommand;
 use MarcoRieser\Sync\Rsync\RsyncOptions;
 
 final readonly class PendingSync
 {
+    /**
+     * A backup only ever applies to a pull — normalized here (not just left to the
+     * caller) so `backup !== null` reliably implies a backup will run, regardless of
+     * which operation a caller constructs this with.
+     */
+    public ?Backup $backup;
+
     /**
      * @param  Collection<int, Recipe>  $recipes
      */
@@ -24,7 +33,10 @@ final readonly class PendingSync
         public Remote $remote,
         public Collection $recipes,
         public RsyncOptions $options,
-    ) {}
+        ?Backup $backup = null,
+    ) {
+        $this->backup = $operation === Operation::Pull ? $backup : null;
+    }
 
     /**
      * Build one rsync command per resolved, de-duplicated recipe path.
@@ -33,11 +45,74 @@ final readonly class PendingSync
      */
     public function commands(): Collection
     {
-        return $this->recipes
+        return $this->resolvedPaths()
+            ->map(fn (string $path) => new RsyncCommand($this->operation, $this->remote, $path, $this->options));
+    }
+
+    /**
+     * Build one backup command per resolved, de-duplicated recipe path.
+     *
+     * Empty unless a backup was requested — the constructor already normalizes
+     * `$backup` to null for anything but a pull, so this needs no operation check.
+     *
+     * @return Collection<int, BackupCommand>
+     */
+    public function backups(): Collection
+    {
+        if ($this->backup === null) {
+            return collect();
+        }
+
+        return $this->resolvedPaths()
+            ->map(fn (string $path) => new BackupCommand($path, $this->backup));
+    }
+
+    /**
+     * Get every recipe path, flattened and de-duplicated.
+     *
+     * @return Collection<int, string>
+     */
+    private function resolvedPaths(): Collection
+    {
+        return once(fn () => $this->recipes
             ->flatMap(fn (Recipe $recipe) => $recipe->paths)
             ->unique()
-            ->values()
-            ->map(fn (string $path) => new RsyncCommand($this->operation, $this->remote, $path, $this->options));
+            ->values());
+    }
+
+    /**
+     * Run the backup (if any), then every rsync command, one process at a time.
+     *
+     * The backup always runs first and must fully succeed before the sync starts —
+     * otherwise we'd risk overwriting local files we failed to protect.
+     *
+     * @return bool Whether every command completed successfully.
+     */
+    public function run(?Closure $onOutput = null): bool
+    {
+        if (! $this->runBackup($onOutput)) {
+            return false;
+        }
+
+        return $this->runSync($onOutput);
+    }
+
+    /**
+     * Run the backup only, one process at a time.
+     *
+     * Exposed separately from `run()` so a caller can report a backup failure
+     * distinctly from a sync failure — the two mean very different things for a
+     * feature whose purpose is protecting local files.
+     *
+     * @return bool Whether every backup command completed successfully.
+     */
+    public function runBackup(?Closure $onOutput = null): bool
+    {
+        return $this->backups()
+            ->map(fn (BackupCommand $command) => Process::forever()
+                ->path($command->workingDirectory())
+                ->run($command->toArgs(), $onOutput))
+            ->every(fn (ProcessResult $result) => $result->successful());
     }
 
     /**
@@ -45,7 +120,7 @@ final readonly class PendingSync
      *
      * @return bool Whether every command completed successfully.
      */
-    public function run(?Closure $onOutput = null): bool
+    public function runSync(?Closure $onOutput = null): bool
     {
         return $this->commands()
             ->map(fn (RsyncCommand $command) => Process::forever()->run($command->toArgs(), $onOutput))

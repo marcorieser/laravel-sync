@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Process;
 use MarcoRieser\Sync\Rsync\RsyncOptions;
 
@@ -145,13 +146,103 @@ it('allows pulling from a read-only remote', function () {
     Process::assertRanTimes(fn ($process) => true, 1);
 });
 
+it('backs up local files before a real pull when --backup is passed', function () {
+    $this->travelTo(Carbon::parse('2026-07-24 13:45:30'));
+
+    $this->artisan('sync', [
+        'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
+    ])
+        ->expectsOutputToContain('Backing up local files...')
+        ->expectsOutputToContain('Sync completed successfully.')
+        ->assertSuccessful();
+
+    Process::assertRanTimes(fn ($process) => true, 2);
+    Process::assertRan(fn ($process) => in_array('--relative', $process->command, true)
+        && in_array('storage/app/assets/', $process->command, true)
+        && in_array(base_path('.sync-backups/2026-07-24_134530').'/', $process->command, true)
+        && $process->path === base_path());
+});
+
+it('reports a distinct error when the backup fails, and never runs the pull', function () {
+    Process::fake(fn ($process) => in_array('--relative', $process->command, true)
+        ? Process::result(exitCode: 1)
+        : Process::result());
+
+    $this->artisan('sync', [
+        'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
+    ])
+        ->expectsOutputToContain('Backing up local files...')
+        ->expectsOutputToContain('Backup failed. Nothing was synced — your local files are untouched.')
+        ->assertFailed();
+
+    Process::assertRanTimes(fn ($process) => true, 1);
+    Process::assertNotRan(fn ($process) => in_array('forge@5.6.7.8:/srv/staging/storage/app/assets/', $process->command, true));
+});
+
+it('does not back up on a dry pull, even with --backup passed', function () {
+    $this->artisan('sync', [
+        'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--dry' => true, '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    Process::assertRanTimes(fn ($process) => true, 1);
+    Process::assertRan(fn ($process) => in_array('--dry-run', $process->command, true));
+    Process::assertNotRan(fn ($process) => in_array('--relative', $process->command, true));
+});
+
+it('ignores --backup on a push', function () {
+    $this->artisan('sync', [
+        'operation' => 'push', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    Process::assertRanTimes(fn ($process) => true, 1);
+    Process::assertNotRan(fn ($process) => in_array('--relative', $process->command, true));
+});
+
+it('fails with a friendly error when the backup directory is nested inside a recipe path', function () {
+    config(['sync.backup_dir' => 'storage/app/assets/.sync-backups']);
+
+    $this->artisan('sync', [
+        'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
+    ])
+        ->expectsOutputToContain('Choose a backup_dir outside the recipe paths you back up.')
+        ->assertFailed();
+
+    Process::assertNothingRan();
+});
+
+it('strips rsync\'s own backup flags from the pull command when --backup is passed', function () {
+    $this->artisan('sync', [
+        'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'],
+        '--backup' => true, '--option' => ['--archive', '--backup', '--backup-dir=/tmp/old'], '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    Process::assertRan(fn ($process) => in_array('forge@5.6.7.8:/srv/staging/storage/app/assets/', $process->command, true)
+        && ! in_array('--backup', $process->command, true)
+        && ! in_array('--backup-dir=/tmp/old', $process->command, true));
+});
+
 it('aborts when the user declines the confirmation prompt', function () {
     $this->artisan('sync', ['operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--option' => ['--archive']])
+        ->expectsConfirmation('Back up the local files before pulling?', 'no')
         ->expectsConfirmation('You are about to pull "assets" from "staging". Are you sure?')
         ->expectsOutputToContain('Sync aborted.')
         ->assertSuccessful();
 
     Process::assertNothingRan();
+});
+
+it('asks whether to back up before asking which options to use, interactively, on a pull', function () {
+    // "--backup" is dropped from the options prompt, since the confirmed backup already covers it.
+    $expectedOptions = collect(RsyncOptions::AVAILABLE)->except('--backup')->all();
+
+    $this->artisan('sync', ['operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets']])
+        ->expectsConfirmation('Back up the local files before pulling?', 'yes')
+        ->expectsChoice('Which rsync options do you want to use?', ['--archive'], $expectedOptions)
+        ->expectsConfirmation('You are about to pull "assets" from "staging". Are you sure?', 'yes')
+        ->expectsOutputToContain('Backing up local files...')
+        ->assertSuccessful();
+
+    Process::assertRanTimes(fn ($process) => true, 2);
 });
 
 it('syncs every recipe when the user confirms "sync all recipes?"', function () {
@@ -184,7 +275,7 @@ it('moves the configured default options to the front of the prompt, in AVAILABL
     $expectedOrder = [
         '--archive', '--verbose', '--delete', '--progress', '--compress', '--stats',
         '--human-readable', '--itemize-changes', '--update', '--partial', '--delete-after',
-        '--checksum', '--copy-links', '--no-perms', '--no-owner', '--no-group',
+        '--checksum', '--copy-links', '--no-perms', '--no-owner', '--no-group', '--backup',
     ];
     $expectedOptions = collect($expectedOrder)
         ->mapWithKeys(fn (string $flag) => [$flag => RsyncOptions::AVAILABLE[$flag]])

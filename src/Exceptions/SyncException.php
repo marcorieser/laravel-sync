@@ -88,4 +88,16 @@ class SyncException extends RuntimeException
     {
         return new self(sprintf('The origin and target path for "%s" are the same. Refusing to sync a path with itself.', $path));
     }
+
+    /**
+     * The backup directory is the same as, or nested inside, a recipe path being backed up.
+     */
+    public static function backupDirNested(string $dir, string $path): self
+    {
+        return new self(sprintf(
+            'The backup directory "%s" is the same as, or inside, the recipe path "%s". Choose a backup_dir outside the recipe paths you back up.',
+            $dir,
+            $path,
+        ));
+    }
 }

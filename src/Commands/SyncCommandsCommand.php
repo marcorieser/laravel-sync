@@ -6,7 +6,7 @@ namespace MarcoRieser\Sync\Commands;
 
 use Illuminate\Console\Command;
 use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
-use MarcoRieser\Sync\Rsync\RsyncCommand;
+use Stringable;
 
 class SyncCommandsCommand extends Command
 {
@@ -21,7 +21,8 @@ class SyncCommandsCommand extends Command
         {recipe?* : The recipes defining the paths to sync}
         {--O|option=* : Override the default rsync options}
         {--A|all : Sync all recipes}
-        {--D|dry : Preview the options used for a dry run}';
+        {--D|dry : Preview the options used for a dry run}
+        {--B|backup : Preview the backup that would run before a real pull}';
 
     /**
      * The command description.
@@ -37,9 +38,9 @@ class SyncCommandsCommand extends Command
             return self::FAILURE;
         }
 
-        $pending->commands()->each(
-            fn (RsyncCommand $command) => $this->line((string) $command),
-        );
+        $pending->backups()
+            ->concat($pending->commands())
+            ->each(fn (Stringable $command) => $this->line((string) $command));
 
         return self::SUCCESS;
     }

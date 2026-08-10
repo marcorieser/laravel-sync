@@ -25,7 +25,8 @@ class SyncCommand extends Command
         {recipe?* : The recipes defining the paths to sync}
         {--O|option=* : Override the default rsync options}
         {--A|all : Sync all recipes}
-        {--D|dry : Perform a dry run of the sync}';
+        {--D|dry : Perform a dry run of the sync}
+        {--B|backup : Back up local files before a real pull}';
 
     /**
      * The command description.
@@ -50,12 +51,19 @@ class SyncCommand extends Command
         }
 
         $shouldStreamOutput = $dry || $pending->options->producesOutput();
+        $onOutput = $shouldStreamOutput ? fn (string $type, string $output) => $this->output->write($output) : null;
 
-        $successful = $pending->run(
-            $shouldStreamOutput ? fn (string $type, string $output) => $this->output->write($output) : null,
-        );
+        if ($pending->backup !== null) {
+            $this->comment('Backing up local files...');
 
-        if (! $successful) {
+            if (! $pending->runBackup($onOutput)) {
+                $this->error('Backup failed. Nothing was synced — your local files are untouched.');
+
+                return self::FAILURE;
+            }
+        }
+
+        if (! $pending->runSync($onOutput)) {
             $this->error($dry ? 'Dry run failed.' : 'Sync failed.');
 
             return self::FAILURE;
@@ -64,6 +72,15 @@ class SyncCommand extends Command
         $this->info($dry ? 'Dry run completed successfully.' : 'Sync completed successfully.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * `sync` is the one command that actually runs the backup it confirms, so it
+     * overrides the trait's `false` default.
+     */
+    protected function promptsForBackupConfirmation(): bool
+    {
+        return true;
     }
 
     private function confirmSync(PendingSync $pending): bool
