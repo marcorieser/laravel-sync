@@ -51,13 +51,4 @@ class SyncListCommand extends Command
 
         return self::SUCCESS;
     }
-
-    /**
-     * This command only previews, so a backup confirm would misleadingly imply an
-     * action it doesn't take.
-     */
-    protected function promptsForBackupConfirmation(): bool
-    {
-        return false;
-    }
 }

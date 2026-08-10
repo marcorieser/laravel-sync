@@ -74,6 +74,15 @@ class SyncCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * `sync` is the one command that actually runs the backup it confirms, so it
+     * overrides the trait's `false` default.
+     */
+    protected function promptsForBackupConfirmation(): bool
+    {
+        return true;
+    }
+
     private function confirmSync(PendingSync $pending): bool
     {
         $names = $pending->recipes->map(fn (Recipe $recipe) => $recipe->name)->implode(' and ');

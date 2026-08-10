@@ -165,15 +165,15 @@ trait ResolvesSyncInput
     /**
      * Whether this command should interactively confirm a backup before assuming one.
      *
-     * `sync` runs what it resolves, so confirming makes sense. `sync:list` and
-     * `sync:commands` only preview and never call `runBackup()`/`runSync()`, so asking
-     * would misleadingly imply an action is about to happen — they override this to
-     * `false`. `--backup` still works explicitly either way; this only gates the
-     * interactive confirm.
+     * Defaults to `false`: most consumers of this trait (`sync:list`, `sync:commands`)
+     * only preview and never call `runBackup()`/`runSync()`, so asking would misleadingly
+     * imply an action is about to happen. `sync` is the exception — it runs what it
+     * resolves, so it overrides this to `true`. `--backup` still works explicitly either
+     * way; this only gates the interactive confirm.
      */
     protected function promptsForBackupConfirmation(): bool
     {
-        return true;
+        return false;
     }
 
     protected function resolveOptions(bool $backup): RsyncOptions
