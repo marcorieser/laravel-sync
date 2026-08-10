@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Number;
+use MarcoRieser\Sync\Commands\Concerns\ConfirmsUnlessSkipped;
 use MarcoRieser\Sync\Data\BackupFolder;
 use MarcoRieser\Sync\Exceptions\SyncException;
 use MarcoRieser\Sync\Sync;
@@ -18,6 +19,8 @@ use function Laravel\Prompts\table;
 
 class SyncBackupsCleanCommand extends Command
 {
+    use ConfirmsUnlessSkipped;
+
     /**
      * The command signature.
      */
@@ -62,7 +65,9 @@ class SyncBackupsCleanCommand extends Command
             return self::SUCCESS;
         }
 
-        if ($this->input->isInteractive() && ! (bool) $this->option('force') && ! $this->confirmDeletion($selected, $sync)) {
+        $force = (bool) $this->option('force');
+
+        if (! $this->confirmUnlessSkipped($force, fn () => $this->confirmDeletion($selected, $sync))) {
             $this->comment('Cleanup aborted.');
 
             return self::SUCCESS;
@@ -139,26 +144,40 @@ class SyncBackupsCleanCommand extends Command
         $failed = [];
 
         foreach ($selected as $folder) {
-            if (File::deleteDirectory($folder->path)) {
-                $freed += $folder->size;
+            File::deleteDirectory($folder->path);
+
+            // `deleteDirectory()`'s return value isn't trustworthy: it reports success
+            // once the top-level directory existed, even when an individual file inside
+            // failed to delete (in which case the directory itself survives, non-empty).
+            // Checking the directory is actually gone is the only reliable signal.
+            if (File::isDirectory($folder->path)) {
+                $failed[] = $folder->name;
 
                 continue;
             }
 
-            $failed[] = $folder->name;
+            $freed += $folder->size;
+        }
+
+        $deleted = $selected->count() - count($failed);
+
+        if ($deleted > 0) {
+            $this->info(sprintf(
+                'Deleted %d backup(s), freeing %s.',
+                $deleted,
+                Number::fileSize($freed, precision: 1),
+            ));
         }
 
         if ($failed !== []) {
-            $this->error(sprintf('Failed to delete the backup "%s".', $failed[0]));
+            $this->error(sprintf(
+                'Failed to delete %d backup(s): %s.',
+                count($failed),
+                implode(', ', array_map(fn (string $name) => "\"{$name}\"", $failed)),
+            ));
 
             return self::FAILURE;
         }
-
-        $this->info(sprintf(
-            'Deleted %d backup(s), freeing %s.',
-            $selected->count(),
-            Number::fileSize($freed, precision: 1),
-        ));
 
         return self::SUCCESS;
     }

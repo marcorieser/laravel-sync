@@ -123,7 +123,7 @@ it('fails with a friendly error when the backup directory resolves outside the p
     config(['sync.backup_dir' => '../outside']);
 
     $this->artisan('sync:backups-clean', ['--all' => true, '--no-interaction' => true])
-        ->expectsOutputToContain('Refusing to delete anything.')
+        ->expectsOutputToContain('Set a backup_dir inside your project.')
         ->assertFailed();
 });
 
@@ -142,6 +142,27 @@ it('reports a friendly error when a backup fails to delete', function () {
         ->andReturn(false);
 
     $this->artisan('sync:backups-clean', ['--all' => true, '--no-interaction' => true])
-        ->expectsOutputToContain('Failed to delete the backup "2026-07-24_134530".')
+        ->expectsOutputToContain('Failed to delete 1 backup(s): "2026-07-24_134530".')
         ->assertFailed();
+});
+
+it('reports both the successful deletes and every failure on a partial delete', function () {
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-25_090000");
+
+    $failing = resolve(Sync::class)->backups()->firstWhere('name', '2026-07-24_134530');
+
+    File::partialMock()
+        ->shouldReceive('deleteDirectory')
+        ->once()
+        ->with($failing->path)
+        ->andReturn(false);
+
+    $this->artisan('sync:backups-clean', ['--all' => true, '--no-interaction' => true])
+        ->expectsOutputToContain('Deleted 1 backup(s)')
+        ->expectsOutputToContain('Failed to delete 1 backup(s): "2026-07-24_134530".')
+        ->assertFailed();
+
+    expect(File::isDirectory("{$this->backupPath}/2026-07-24_134530"))->toBeTrue()
+        ->and(File::isDirectory("{$this->backupPath}/2026-07-25_090000"))->toBeFalse();
 });

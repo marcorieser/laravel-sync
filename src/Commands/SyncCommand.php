@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarcoRieser\Sync\Commands;
 
 use Illuminate\Console\Command;
+use MarcoRieser\Sync\Commands\Concerns\ConfirmsUnlessSkipped;
 use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
 use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\Recipe;
@@ -15,6 +16,7 @@ use function Laravel\Prompts\confirm;
 
 class SyncCommand extends Command
 {
+    use ConfirmsUnlessSkipped;
     use ResolvesSyncInput;
 
     /**
@@ -45,7 +47,7 @@ class SyncCommand extends Command
 
         $dry = (bool) $this->option('dry');
 
-        if (! $dry && $this->input->isInteractive() && ! $this->confirmSync($pending)) {
+        if (! $this->confirmUnlessSkipped($dry, fn () => $this->confirmSync($pending))) {
             $this->comment('Sync aborted.');
 
             return self::SUCCESS;
