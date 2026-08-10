@@ -60,7 +60,10 @@ final readonly class PendingSync
     public function backups(): Collection
     {
         if (! $this->backup instanceof Backup) {
-            return collect();
+            /** @var Collection<int, BackupCommand> $empty */
+            $empty = collect();
+
+            return $empty;
         }
 
         return $this->resolvedPaths()

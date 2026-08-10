@@ -71,7 +71,9 @@ class Sync
      */
     public function backupDir(): string
     {
-        return (string) config('sync.backup_dir', '.sync-backups');
+        $value = config('sync.backup_dir', '.sync-backups');
+
+        return is_string($value) ? $value : '.sync-backups';
     }
 
     /**

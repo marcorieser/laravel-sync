@@ -208,6 +208,7 @@ trait ResolvesSyncInput
      * and fail with `$missingException` when it's still not a non-empty string.
      *
      * @param  array<int|string, string>  $options
+     * @param  Closure(): SyncException  $missingException
      */
     private function resolveArgumentOrPrompt(string $argument, string $label, array $options, Closure $missingException): string
     {
