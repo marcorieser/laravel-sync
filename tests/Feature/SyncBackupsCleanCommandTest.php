@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 use MarcoRieser\Sync\Data\BackupFolder;
+use MarcoRieser\Sync\Sync;
 
 beforeEach(function () {
     // Unique per test (even under `pest --parallel`, which shares one Testbench
@@ -129,10 +130,15 @@ it('fails with a friendly error when the backup directory resolves outside the p
 it('reports a friendly error when a backup fails to delete', function () {
     File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
 
+    // Matched against the path `Sync::backups()` actually resolves (not a hand-built
+    // string) — `File::directories()` returns OS-native separators, and a literal "/"
+    // join would mismatch Mockery's exact string match on Windows.
+    $folder = resolve(Sync::class)->backups()->sole();
+
     File::partialMock()
         ->shouldReceive('deleteDirectory')
         ->once()
-        ->with("{$this->backupPath}/2026-07-24_134530")
+        ->with($folder->path)
         ->andReturn(false);
 
     $this->artisan('sync:backups-clean', ['--all' => true, '--no-interaction' => true])
