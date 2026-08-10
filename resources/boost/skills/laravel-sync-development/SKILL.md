@@ -121,11 +121,13 @@ php artisan sync:backups-clean
 Deletes timestamped folders under `backup_dir`, leaving `backup_dir` itself (and anything in it that isn't a
 timestamped backup folder) untouched. With no options, it prompts with a multiselect listing each backup's
 name, size, and age. Options: `-A`/`--all` (select every backup instead of prompting), `-D`/`--dry` (preview
-what would be deleted, deletes nothing), `-F`/`--force` (skip the confirmation prompt).
+what would be deleted, deletes nothing), `-F`/`--force` (skip the confirmation prompt), `-K`/`--keep=` (keep
+the N newest, delete the rest), `--older-than=` (delete backups older than N days).
 
-Running it with `--no-interaction` and without `--all` fails fast with a clear error instead of deleting
-anything — there's no picker to fall back to. The confirmation prompt only shows when running interactively,
-so `--no-interaction --all` (e.g. in a scheduled task) deletes immediately without needing `--force`.
+Running it with `--no-interaction` and without `--all` (or `--keep`/`--older-than`) fails fast with a clear
+error instead of deleting anything — there's no picker to fall back to. The confirmation prompt only shows
+when running interactively, so `--no-interaction --all` (or `--keep`/`--older-than`, e.g. in a scheduled task)
+deletes immediately without needing `--force`. `--keep`/`--older-than` cannot be combined with `--all`.
 
 ### 9. Test a remote's connection (optional)
 
@@ -167,6 +169,9 @@ php artisan sync:commands push production assets
 
 # Delete every backup without a confirmation prompt (e.g. in a scheduled task)
 php artisan sync:backups-clean --all --force
+
+# Cron-safe cleanup: keep the 5 newest backups, delete anything else older than 30 days
+php artisan sync:backups-clean --keep=5 --older-than=30 --no-interaction
 
 # Check the SSH connection and root path for a remote before syncing
 php artisan sync:test-connection production
