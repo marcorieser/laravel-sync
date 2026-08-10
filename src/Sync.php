@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarcoRieser\Sync;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\File;
 use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\BackupFolder;
 use MarcoRieser\Sync\Data\Recipe;
@@ -83,13 +84,18 @@ class Sync
      * `Backup` gets created from config, so neither guard can be skipped by a caller
      * forgetting to run it separately.
      *
+     * Built from `guardBackupDirSafe()`'s returned, dot-collapsed directory rather than
+     * the raw configured string, so the `Backup` this produces — and everything that
+     * later reads `$backup->dir` (e.g. `BackupCommand::target()`) — agrees with exactly
+     * what was validated as safe.
+     *
      * @param  Collection<int, Recipe>  $recipes
      */
     public function startBackup(Collection $recipes): Backup
     {
-        $backup = Backup::now($this->backupDir());
+        $backup = Backup::now($this->guardBackupDirSafe($this->backupDir()));
 
-        $this->guardBackup($backup, $recipes);
+        $this->guardBackupNotNested($backup, $recipes);
 
         return $backup;
     }
@@ -104,9 +110,13 @@ class Sync
      */
     public function backups(): Collection
     {
-        $this->guardBackupDirSafe($this->backupDir());
-
-        $dir = base_path($this->backupDir());
+        // The dot-collapsed directory `guardBackupDirSafe()` returns, not the raw
+        // configured string: a redundant ".." through a not-yet-existing intermediate
+        // directory (e.g. "storage/tmp/../.sync-backups") would still be validated as
+        // safe, but the raw string handed to `glob()` below would then need
+        // "storage/tmp" to actually exist to resolve through it — silently finding
+        // nothing even though the (collapsed) directory the guard approved is real.
+        $dir = base_path($this->guardBackupDirSafe($this->backupDir()));
 
         // `glob()`, not `File::isDirectory()` + `File::directories()`: that two-step
         // check-then-act pair races if the directory is removed in between (by another
@@ -124,11 +134,43 @@ class Sync
         // them: a symlinked entry here would let `sync:backups-clean` hand
         // `File::deleteDirectory()` a path whose *contents* live outside `backup_dir`,
         // silently wiping whatever the link points at instead of a real backup folder.
+        //
+        // `tryFromPath()`, not `isValidName()` + `fromPath()`: both parse the folder
+        // name against `Backup::FORMAT`, so checking validity and hydrating separately
+        // would parse every real backup folder's name twice for no reason.
         return collect($directories)
-            ->filter(fn (string $path) => ! is_link($path) && BackupFolder::isValidName(basename($path)))
-            ->map(fn (string $path) => BackupFolder::fromPath($path, $this->directorySize($path)))
+            ->reject(fn (string $path) => is_link($path))
+            ->map(fn (string $path) => BackupFolder::tryFromPath($path, fn () => $this->directorySize($path)))
+            ->filter()
             ->sortByDesc(fn (BackupFolder $folder) => $folder->name)
             ->values();
+    }
+
+    /**
+     * Delete a single backup folder from disk, reporting whether it actually succeeded.
+     *
+     * Re-checks `is_link()` immediately before deleting, even though `backups()` already
+     * excludes symlinks when listing: `sync:backups-clean`'s interactive flow runs a
+     * `multiselect()` and a `confirm()` prompt — an arbitrarily long, user-paced window —
+     * between listing and this call, during which the folder could have been replaced by
+     * a symlink (a concurrent process, or a race). Without this, `File::deleteDirectory()`
+     * would follow it and delete the *target*'s contents instead of a real backup folder,
+     * the exact class of bug the listing-time filter exists to prevent.
+     *
+     * `File::deleteDirectory()`'s own return value isn't trustworthy: it reports success
+     * once the top-level directory existed, even when an individual file inside failed to
+     * delete (in which case the directory itself survives, non-empty) — checking the
+     * directory is actually gone afterward is the only reliable signal.
+     */
+    public function deleteBackup(BackupFolder $folder): bool
+    {
+        if (is_link($folder->path)) {
+            return false;
+        }
+
+        File::deleteDirectory($folder->path);
+
+        return ! File::isDirectory($folder->path);
     }
 
     /**
@@ -149,8 +191,12 @@ class Sync
      * it for real and refuses it if a symlink leads outside the project (or straight at
      * the project root) — the lexical check alone can't catch a `backup_dir` that looks
      * like a normal, contained relative path but is actually a symlink to somewhere else.
+     *
+     * Returns the dot-collapsed relative path it just validated, so a caller that goes
+     * on to actually read or write that directory uses exactly what was checked, not
+     * the raw (possibly ".."-laden) configured string.
      */
-    public function guardBackupDirSafe(string $dir): void
+    public function guardBackupDirSafe(string $dir): string
     {
         $normalized = str_replace('\\', '/', trim($dir));
 
@@ -165,18 +211,18 @@ class Sync
         }
 
         $this->guardBackupDirNotEscapingRootOnDisk($dir, $segments);
+
+        return implode('/', $segments);
     }
 
     /**
      * Lexically collapse "." and ".." segments out of an already-`/`-normalized path,
      * without touching the filesystem.
      *
-     * Shared by `guardBackupDirSafe()` (which rejects the path outright if a ".."
-     * pops above where collapsing started — reported via `$escaped`) and
-     * `guardBackupNotNested()` (which has nothing to reject at this stage: `$dir` was
-     * already run through `guardBackupDirSafe()`, so a "true" `$escaped` here can't
-     * happen — it just needs the real relative path a redundant ".." segment would
-     * otherwise hide from a plain string comparison).
+     * Shared by `guardBackupDirSafe()` and `guardBackupNotNested()`, both of which
+     * reject the path outright if a ".." pops above where collapsing started —
+     * reported via `$escaped` — rather than trusting a caller to have run the other
+     * guard first.
      *
      * @return array{0: array<int, string>, 1: bool}
      */
@@ -251,10 +297,8 @@ class Sync
             $ancestor = dirname($ancestor);
         }
 
-        $real = realpath($ancestor);
-        $root = realpath(base_path());
-        $normalizedReal = $real === false ? null : str_replace('\\', '/', $real);
-        $normalizedRoot = $root === false ? null : str_replace('\\', '/', $root);
+        $normalizedReal = $this->normalizeRealpath(realpath($ancestor));
+        $normalizedRoot = $this->normalizeRealpath(realpath(base_path()));
 
         if ($normalizedReal === null || $normalizedRoot === null || ! $this->isPathWithin($normalizedReal, $normalizedRoot)) {
             throw SyncException::backupDirUnsafe($dir);
@@ -266,35 +310,42 @@ class Sync
     }
 
     /**
+     * Normalize a `realpath()` result for the on-disk containment check: separators
+     * only, deliberately NOT case-folded (see `guardBackupDirNotEscapingRootOnDisk()`).
+     * A failed `realpath()` (`false`) normalizes to `null` rather than being treated as
+     * a literal path.
+     */
+    private function normalizeRealpath(string|false $path): ?string
+    {
+        return $path === false ? null : str_replace('\\', '/', $path);
+    }
+
+    /**
      * Sum the size, in bytes, of every file (including hidden ones, e.g. a backed-up
      * `.env`) under the given directory, recursing into subdirectories.
      *
-     * Walks the tree with `glob()`, not `File::allFiles()`: the latter is Finder-backed
-     * and throws if the directory vanishes between being listed by `backups()` and
-     * being sized here — the same class of race `backups()` itself avoids by using
-     * `glob()` instead of `File::directories()`. `glob()` on a missing directory
-     * returns nothing rather than throwing, so a vanished folder naturally sizes to 0
-     * with no separate check needed.
+     * Walks the tree with `scandir()`, not `File::allFiles()`: the latter is
+     * Finder-backed and throws if the directory vanishes between being listed by
+     * `backups()` and being sized here — the same class of race `backups()` itself
+     * avoids by using `glob()` instead of `File::directories()`. Suppressed and
+     * defaulted to an empty list on failure, `scandir()` never throws either, so a
+     * vanished folder naturally sizes to 0 with no separate check needed. Unlike
+     * `glob()`, it also lists hidden entries and regular ones in a single pass (no
+     * "/*" + "/.*" pair needed) and never interprets `$path` as a pattern, so a
+     * backed-up file or directory containing a glob metacharacter in its own name
+     * (e.g. "report[final].csv" is a perfectly valid filename) can't widen it either.
      *
      * Never follows a symlinked entry: `rsync --archive` (how a backup is populated)
      * preserves symlinks from the source tree verbatim, so a backup folder can contain
      * one pointing back at an ancestor of itself — recursing into it would re-walk the
      * same real directories over and over (inflating the reported size) until the
      * built-up path finally exceeds the OS path-length limit.
-     *
-     * `$path` is escaped the same way `backups()` escapes `$dir` — a backed-up file or
-     * directory is free to contain a glob metacharacter in its own name (e.g.
-     * "report[final].csv" is a perfectly valid filename), which would otherwise widen
-     * the pattern and pull unrelated entries into the sum.
      */
     private function directorySize(string $path): int
     {
         $size = 0;
-        $escaped = $this->escapeGlobPattern($path);
 
-        foreach ([...glob("{$escaped}/*", GLOB_NOSORT) ?: [], ...glob("{$escaped}/.*", GLOB_NOSORT) ?: []] as $entry) {
-            $name = basename($entry);
-
+        foreach (@scandir($path) ?: [] as $name) {
             if ($name === '.') {
                 continue;
             }
@@ -302,6 +353,8 @@ class Sync
             if ($name === '..') {
                 continue;
             }
+
+            $entry = "{$path}/{$name}";
 
             if (is_link($entry)) {
                 continue;
@@ -415,11 +468,20 @@ class Sync
      * against the uncollapsed literal wouldn't recognize it as such and would let it
      * through.
      *
+     * Also refuses `$backup->dir` outright if it steps above the project root — public,
+     * like this method, so a caller isn't relying purely on convention (running
+     * `guardBackupDirSafe()` first) for that half of the safety check too.
+     *
      * @param  Collection<int, Recipe>  $recipes
      */
     public function guardBackupNotNested(Backup $backup, Collection $recipes): void
     {
-        [$backupSegments] = $this->collapseDotSegments(str_replace('\\', '/', $backup->dir));
+        [$backupSegments, $escaped] = $this->collapseDotSegments(str_replace('\\', '/', $backup->dir));
+
+        if ($escaped) {
+            throw SyncException::backupDirUnsafe($backup->dir);
+        }
+
         $backupPath = $this->normalizePath(rtrim(base_path(implode('/', $backupSegments)), '/'));
 
         foreach ($this->resolvedPaths($recipes) as $path) {
@@ -433,8 +495,9 @@ class Sync
 
     /**
      * Guard both that `backup_dir` is safe to write into and that it doesn't nest
-     * inside a recipe path — the pair `prepare()` and `startBackup()` both need to run
-     * on a `Backup`, whether it was just created or handed in by the caller.
+     * inside a recipe path, for a `Backup` `prepare()` didn't create itself (so it
+     * can't already trust `startBackup()`'s own guarding — a caller-supplied `Backup`
+     * might carry a dir `guardBackupDirSafe()` never validated at all).
      *
      * @param  Collection<int, Recipe>  $recipes
      */

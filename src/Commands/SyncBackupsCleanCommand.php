@@ -6,8 +6,8 @@ namespace MarcoRieser\Sync\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Number;
+use Illuminate\Support\Str;
 use MarcoRieser\Sync\Commands\Concerns\ConfirmsUnlessSkipped;
 use MarcoRieser\Sync\Data\BackupFolder;
 use MarcoRieser\Sync\Exceptions\SyncException;
@@ -75,7 +75,7 @@ class SyncBackupsCleanCommand extends Command
             return self::SUCCESS;
         }
 
-        return $this->deleteSelection($selected);
+        return $this->deleteSelection($selected, $sync);
     }
 
     /**
@@ -113,8 +113,8 @@ class SyncBackupsCleanCommand extends Command
             headers: ['Backup', 'Size', 'Created'],
             rows: $selected->map(fn (BackupFolder $folder) => [
                 $folder->name,
-                Number::fileSize($folder->size, precision: 1),
-                $folder->createdAt->diffForHumans(),
+                $folder->formattedSize(),
+                $folder->age(),
             ])->all(),
         );
 
@@ -128,8 +128,9 @@ class SyncBackupsCleanCommand extends Command
     {
         return confirm(
             label: sprintf(
-                'You are about to permanently delete %d backup(s) (%s) from "%s". Are you sure?',
+                'You are about to permanently delete %d %s (%s) from "%s". Are you sure?',
                 $selected->count(),
+                Str::plural('backup', $selected->count()),
                 Number::fileSize($selected->sum(fn (BackupFolder $folder) => $folder->size), precision: 1),
                 $sync->backupDir(),
             ),
@@ -140,19 +141,13 @@ class SyncBackupsCleanCommand extends Command
     /**
      * @param  Collection<int, BackupFolder>  $selected
      */
-    private function deleteSelection(Collection $selected): int
+    private function deleteSelection(Collection $selected, Sync $sync): int
     {
         $freed = 0;
         $failed = [];
 
         foreach ($selected as $folder) {
-            File::deleteDirectory($folder->path);
-
-            // `deleteDirectory()`'s return value isn't trustworthy: it reports success
-            // once the top-level directory existed, even when an individual file inside
-            // failed to delete (in which case the directory itself survives, non-empty).
-            // Checking the directory is actually gone is the only reliable signal.
-            if (File::isDirectory($folder->path)) {
+            if (! $sync->deleteBackup($folder)) {
                 $failed[] = $folder->name;
 
                 continue;
@@ -165,16 +160,18 @@ class SyncBackupsCleanCommand extends Command
 
         if ($deleted > 0) {
             $this->info(sprintf(
-                'Deleted %d backup(s), freeing %s.',
+                'Deleted %d %s, freeing %s.',
                 $deleted,
+                Str::plural('backup', $deleted),
                 Number::fileSize($freed, precision: 1),
             ));
         }
 
         if ($failed !== []) {
             $this->error(sprintf(
-                'Failed to delete %d backup(s): %s.',
+                'Failed to delete %d %s: %s.',
                 count($failed),
+                Str::plural('backup', count($failed)),
                 implode(', ', array_map(fn (string $name) => "\"{$name}\"", $failed)),
             ));
 

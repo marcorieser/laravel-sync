@@ -33,3 +33,33 @@ it('refuses a folder whose name is not a valid backup timestamp', function () {
     InvalidArgumentException::class,
     '"not-a-backup" is not a valid backup timestamp (expected the "Y-m-d_His" format).',
 );
+
+it('exposes size and age formatted for display', function () {
+    $this->travelTo(Date::parse('2026-07-24 14:45:30'));
+
+    $folder = BackupFolder::fromPath(base_path('.sync-backups/2026-07-24_134530'), 1_200_000);
+
+    expect($folder->formattedSize())->toBe(Number::fileSize(1_200_000, precision: 1))
+        ->and($folder->age())->toBe('1 hour ago');
+});
+
+it('hydrates a backup folder from a valid path via tryFromPath()', function () {
+    $folder = BackupFolder::tryFromPath(base_path('.sync-backups/2026-07-24_134530'), fn () => 1024);
+
+    expect($folder)->toBeInstanceOf(BackupFolder::class)
+        ->and($folder->name)->toBe('2026-07-24_134530')
+        ->and($folder->size)->toBe(1024);
+});
+
+it('returns null from tryFromPath() for an invalid name, without calling the size resolver', function () {
+    $called = false;
+
+    $folder = BackupFolder::tryFromPath(base_path('.sync-backups/not-a-backup'), function () use (&$called) {
+        $called = true;
+
+        return 0;
+    });
+
+    expect($folder)->toBeNull()
+        ->and($called)->toBeFalse();
+});

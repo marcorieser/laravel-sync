@@ -184,6 +184,16 @@ it('refuses to back up when a redundant ".." segment hides that the backup direc
     );
 })->throws(SyncException::class);
 
+it('refuses a Backup whose dir steps above the project root, even when guardBackupNotNested() is called directly', function () {
+    // guardBackupNotNested() is public, not just an internal step of guardBackup()
+    // (which always runs guardBackupDirSafe() first) — it must reject an escaping dir
+    // on its own too, not rely on a caller having run the other guard first.
+    $sync = resolve(Sync::class);
+    $backup = new Backup('../../etc', '2026-07-24_134530');
+
+    $sync->guardBackupNotNested($backup, collect([$sync->recipe('assets')]));
+})->throws(SyncException::class);
+
 it('allows backing up when the backup directory is outside the recipe paths', function () {
     $sync = resolve(Sync::class);
     $backup = new Backup('.sync-backups', '2026-07-24_134530');
@@ -318,6 +328,19 @@ it('treats a glob metacharacter in backup_dir as a literal character, not a wild
     }
 });
 
+it('finds backups even when a redundant ".." segment in backup_dir points through a directory that does not exist', function () {
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+
+    // "phantom-*" is never created on disk. The raw, uncollapsed string would need it
+    // to exist to resolve through its own "..", so this only finds anything if
+    // backups() reads from the dot-collapsed directory guardBackupDirSafe() validated,
+    // not the literal configured value.
+    $phantom = 'phantom-'.Str::random(8);
+    config(['sync.backup_dir' => "{$phantom}/../{$this->backupDir}"]);
+
+    expect(resolve(Sync::class)->backups()->pluck('name')->all())->toBe(['2026-07-24_134530']);
+});
+
 it('does not memoize the backup list, so it reflects a delete made earlier in the same run', function () {
     $sync = resolve(Sync::class);
 
@@ -328,9 +351,62 @@ it('does not memoize the backup list, so it reflects a delete made earlier in th
     expect($sync->backups())->toHaveCount(0);
 });
 
+it('deletes a backup folder and reports success', function () {
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+    $folder = resolve(Sync::class)->backups()->sole();
+
+    expect(resolve(Sync::class)->deleteBackup($folder))->toBeTrue()
+        ->and(File::isDirectory($folder->path))->toBeFalse();
+});
+
+it('refuses to delete a backup folder that has been replaced by a symlink since it was listed', function () {
+    // Simulates the race sync:backups-clean's interactive prompts leave open: the
+    // folder was a real directory when backups() listed it, but is a symlink by the
+    // time deleteBackup() actually runs.
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+    $folder = resolve(Sync::class)->backups()->sole();
+
+    $target = sys_get_temp_dir().'/sync-outside-'.Str::random(8);
+    File::ensureDirectoryExists($target);
+    File::put("{$target}/important.txt", 'do not delete me');
+
+    File::deleteDirectory($folder->path);
+
+    if (! @symlink($target, $folder->path)) {
+        File::deleteDirectory($target);
+        $this->markTestSkipped('This environment does not support creating symlinks.');
+    }
+
+    try {
+        expect(resolve(Sync::class)->deleteBackup($folder))->toBeFalse()
+            ->and(File::exists("{$target}/important.txt"))->toBeTrue();
+    } finally {
+        @unlink($folder->path);
+        File::deleteDirectory($target);
+    }
+});
+
+it('reports failure when a backup folder survives its own delete attempt', function () {
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+    $folder = resolve(Sync::class)->backups()->sole();
+
+    File::partialMock()
+        ->shouldReceive('deleteDirectory')
+        ->once()
+        ->with($folder->path)
+        ->andReturn(false);
+
+    expect(resolve(Sync::class)->deleteBackup($folder))->toBeFalse();
+});
+
 it('allows a normal backup directory', function () {
     resolve(Sync::class)->guardBackupDirSafe($this->backupDir);
 })->throwsNoExceptions();
+
+it('returns the dot-collapsed directory, not the raw configured string', function () {
+    expect(resolve(Sync::class)->guardBackupDirSafe("storage/../{$this->backupDir}"))
+        ->toBe($this->backupDir);
+});
 
 it('refuses a blank backup directory', function () {
     resolve(Sync::class)->guardBackupDirSafe('');

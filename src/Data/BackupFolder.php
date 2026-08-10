@@ -43,18 +43,34 @@ final readonly class BackupFolder
      */
     public static function fromPath(string $path, int $size): self
     {
+        return self::tryFromPath($path, fn () => $size) ?? throw new InvalidArgumentException(sprintf(
+            '"%s" is not a valid backup timestamp (expected the "%s" format).',
+            basename($path),
+            Backup::FORMAT,
+        ));
+    }
+
+    /**
+     * Hydrate a backup folder from its absolute path, or return null if the name isn't
+     * a valid backup timestamp — without throwing, and parsing the name only once.
+     *
+     * `$size` is a callback, not a plain value: `Sync::backups()` needs to reject an
+     * invalid folder name before paying for its (potentially expensive, recursive)
+     * size calculation, and this is the single point where validity is known — calling
+     * `isValidName()` first and `fromPath()` after would parse the same name twice.
+     *
+     * @param  callable(): int  $size
+     */
+    public static function tryFromPath(string $path, callable $size): ?self
+    {
         $name = basename($path);
         $parsed = self::parse($name);
 
         if ($parsed === false) {
-            throw new InvalidArgumentException(sprintf(
-                '"%s" is not a valid backup timestamp (expected the "%s" format).',
-                $name,
-                Backup::FORMAT,
-            ));
+            return null;
         }
 
-        return new self(name: $name, path: $path, size: $size, createdAt: Date::instance($parsed));
+        return new self(name: $name, path: $path, size: $size(), createdAt: Date::instance($parsed));
     }
 
     /**
@@ -88,11 +104,25 @@ final readonly class BackupFolder
      */
     public function label(): string
     {
-        return sprintf(
-            '%s (%s, %s)',
-            $this->name,
-            Number::fileSize($this->size, precision: 1),
-            $this->createdAt->diffForHumans(),
-        );
+        return sprintf('%s (%s, %s)', $this->name, $this->formattedSize(), $this->age());
+    }
+
+    /**
+     * The folder's size, formatted for display (e.g. "12.4 MB").
+     *
+     * Shared by `label()` and the `sync:backups-clean --dry` preview table, so the two
+     * can't silently disagree on formatting.
+     */
+    public function formattedSize(): string
+    {
+        return Number::fileSize($this->size, precision: 1);
+    }
+
+    /**
+     * How long ago the folder was created, formatted for display (e.g. "2 weeks ago").
+     */
+    public function age(): string
+    {
+        return $this->createdAt->diffForHumans();
     }
 }

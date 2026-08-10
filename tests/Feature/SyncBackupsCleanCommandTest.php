@@ -34,7 +34,7 @@ it('deletes every backup with --all --no-interaction, leaving the backup directo
     File::put("{$this->backupPath}/README.txt", 'not a backup');
 
     $this->artisan('sync:backups-clean', ['--all' => true, '--no-interaction' => true])
-        ->expectsOutputToContain('Deleted 2 backup(s)')
+        ->expectsOutputToContain('Deleted 2 backups')
         ->assertSuccessful();
 
     expect(File::isDirectory("{$this->backupPath}/2026-07-24_134530"))->toBeFalse()
@@ -69,11 +69,11 @@ it('deletes the backups picked from the interactive multiselect, after confirmin
             [$newer->name => $newer->label(), $older->name => $older->label()],
         )
         ->expectsConfirmation(sprintf(
-            'You are about to permanently delete 1 backup(s) (%s) from "%s". Are you sure?',
+            'You are about to permanently delete 1 backup (%s) from "%s". Are you sure?',
             Number::fileSize(0, precision: 1),
             $this->backupDir,
         ), 'yes')
-        ->expectsOutputToContain('Deleted 1 backup(s)')
+        ->expectsOutputToContain('Deleted 1 backup')
         ->assertSuccessful();
 
     expect(File::isDirectory("{$this->backupPath}/2026-07-25_090000"))->toBeFalse()
@@ -85,7 +85,7 @@ it('deletes nothing when the confirmation is declined', function () {
 
     $this->artisan('sync:backups-clean', ['--all' => true])
         ->expectsConfirmation(sprintf(
-            'You are about to permanently delete 1 backup(s) (%s) from "%s". Are you sure?',
+            'You are about to permanently delete 1 backup (%s) from "%s". Are you sure?',
             Number::fileSize(0, precision: 1),
             $this->backupDir,
         ), 'no')
@@ -100,7 +100,7 @@ it('skips the confirmation prompt with --force', function () {
 
     $this->artisan('sync:backups-clean', ['--all' => true, '--force' => true])
         ->doesntExpectOutputToContain('permanently delete')
-        ->expectsOutputToContain('Deleted 1 backup(s)')
+        ->expectsOutputToContain('Deleted 1 backup')
         ->assertSuccessful();
 
     expect(File::isDirectory("{$this->backupPath}/2026-07-24_134530"))->toBeFalse();
@@ -142,7 +142,7 @@ it('reports a friendly error when a backup fails to delete', function () {
         ->andReturn(false);
 
     $this->artisan('sync:backups-clean', ['--all' => true, '--no-interaction' => true])
-        ->expectsOutputToContain('Failed to delete 1 backup(s): "2026-07-24_134530".')
+        ->expectsOutputToContain('Failed to delete 1 backup: "2026-07-24_134530".')
         ->assertFailed();
 });
 
@@ -159,8 +159,8 @@ it('reports both the successful deletes and every failure on a partial delete', 
         ->andReturn(false);
 
     $this->artisan('sync:backups-clean', ['--all' => true, '--no-interaction' => true])
-        ->expectsOutputToContain('Deleted 1 backup(s)')
-        ->expectsOutputToContain('Failed to delete 1 backup(s): "2026-07-24_134530".')
+        ->expectsOutputToContain('Deleted 1 backup')
+        ->expectsOutputToContain('Failed to delete 1 backup: "2026-07-24_134530".')
         ->assertFailed();
 
     expect(File::isDirectory("{$this->backupPath}/2026-07-24_134530"))->toBeTrue()
