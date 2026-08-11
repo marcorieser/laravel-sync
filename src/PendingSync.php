@@ -47,13 +47,12 @@ final readonly class PendingSync
     public function commands(): Collection
     {
         return $this->pathExcludes()
-            ->map(fn (array $excludes, string $path) => new RsyncCommand(
+            ->map(fn (array $entry) => new RsyncCommand(
                 $this->operation,
                 $this->remote,
-                $path,
-                $this->options->withExcludes($excludes),
-            ))
-            ->values();
+                $entry['path'],
+                $this->options->withExcludes($entry['excludes']),
+            ));
     }
 
     /**
@@ -73,8 +72,8 @@ final readonly class PendingSync
             return $empty;
         }
 
-        return $this->pathExcludes()->keys()
-            ->map(fn (string $path) => new BackupCommand($path, $this->backup));
+        return $this->pathExcludes()
+            ->map(fn (array $entry) => new BackupCommand($entry['path'], $this->backup));
     }
 
     /**
@@ -85,27 +84,63 @@ final readonly class PendingSync
      * `BackupCommand` is a fixed, independent full copy, not affected by the sync's
      * rsync options either.
      *
-     * Each path's contributing recipes' exclude lists are collected as-is during the
-     * loop and only deduplicated once, after the loop, rather than re-deduplicating
-     * the growing list on every recipe that shares the path.
+     * Deliberately not keyed by path in a native PHP array (or a `Collection` built
+     * from one, which is backed by the same array): a purely-numeric path (e.g.
+     * `"2024"`, or `"123"` in `releases/123/`) would be silently coerced to an int
+     * array key by PHP itself — no cast can prevent this, since the coercion happens
+     * at the array-key-assignment level — and then crash the `string $path`-typed
+     * closures above under `declare(strict_types=1)`. Each path is instead tracked as
+     * a value inside an `array{path: string, excludes: array<int, string>}`, found by an
+     * explicit, strict value comparison (`array_search(..., true)`) rather than by
+     * indexing into an array with it.
      *
-     * @return Collection<string, list<string>>
+     * @return Collection<int, array{path: string, excludes: array<int, string>}>
      */
     private function pathExcludes(): Collection
     {
         return once(function () {
-            $excludes = [];
+            /** @var list<array{path: string, excludes: array<int, string>}> $entries */
+            $entries = [];
 
             foreach ($this->recipes as $recipe) {
                 foreach ($recipe->paths as $path) {
-                    $excludes[$path][] = $recipe->excludes;
+                    $index = $this->indexOfPath($entries, $path);
+
+                    if ($index === null) {
+                        $entries[] = ['path' => $path, 'excludes' => $recipe->excludes];
+
+                        continue;
+                    }
+
+                    $entries[$index] = [
+                        'path' => $path,
+                        'excludes' => array_values(array_unique([
+                            ...$entries[$index]['excludes'],
+                            ...$recipe->excludes,
+                        ])),
+                    ];
                 }
             }
 
-            return collect($excludes)->map(
-                fn (array $lists) => array_values(array_unique(array_merge(...$lists))),
-            );
+            return collect($entries);
         });
+    }
+
+    /**
+     * Find the index of the entry for `$path`, or null if none exists yet — a plain
+     * value search, not an array-key lookup (see `pathExcludes()`'s docblock for why).
+     *
+     * @param  list<array{path: string, excludes: array<int, string>}>  $entries
+     */
+    private function indexOfPath(array $entries, string $path): ?int
+    {
+        foreach ($entries as $index => $entry) {
+            if ($entry['path'] === $path) {
+                return $index;
+            }
+        }
+
+        return null;
     }
 
     /**
