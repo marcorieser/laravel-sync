@@ -148,11 +148,25 @@ class SyncBackupsCleanCommand extends Command
 
         return [
             $this->resolveNonNegativeIntOption('keep'),
-            $this->resolveNonNegativeIntOption('older-than'),
+            // Bounded, unlike `--keep`: `Sync::filterByRetention()` feeds this straight
+            // into `now()->subDays()`, and a huge-but-still-`ctype_digit` value (e.g.
+            // anywhere near PHP_INT_MAX) makes Carbon's day arithmetic wrap back around
+            // to a cutoff near *now* instead of the far past — silently inverting the
+            // option's intent from "keep almost everything" to "delete everything".
+            // `--keep` has no such arithmetic to overflow: `take($keep)` on a huge value
+            // just harmlessly takes the whole (much smaller) backup list.
+            $this->resolveNonNegativeIntOption('older-than', self::MAX_OLDER_THAN_DAYS),
         ];
     }
 
-    private function resolveNonNegativeIntOption(string $option): ?int
+    /**
+     * Comfortably beyond any real backup-retention window (over 100 years), while
+     * staying far short of where `Carbon::subDays()`'s day-to-timestamp arithmetic
+     * risks overflowing.
+     */
+    private const int MAX_OLDER_THAN_DAYS = 36500;
+
+    private function resolveNonNegativeIntOption(string $option, ?int $max = null): ?int
     {
         $value = $this->option($option);
 
@@ -168,11 +182,17 @@ class SyncBackupsCleanCommand extends Command
             throw SyncException::invalidRetentionValue($option, get_debug_type($value));
         }
 
-        if (ctype_digit($value)) {
-            return (int) $value;
+        if (! ctype_digit($value)) {
+            throw SyncException::invalidRetentionValue($option, $value);
         }
 
-        throw SyncException::invalidRetentionValue($option, $value);
+        $parsed = (int) $value;
+
+        if ($max !== null && $parsed > $max) {
+            throw SyncException::retentionValueTooLarge($option, $value, $max);
+        }
+
+        return $parsed;
     }
 
     /**

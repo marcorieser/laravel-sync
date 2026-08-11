@@ -202,6 +202,31 @@ it('fails with a friendly error when --keep or --older-than is not a non-negativ
     expect(File::isDirectory("{$this->backupPath}/2026-07-24_134530"))->toBeTrue();
 });
 
+it('fails with a friendly error when --older-than exceeds the maximum instead of overflowing the retention cutoff', function () {
+    // A value near PHP_INT_MAX still passes ctype_digit(), but now()->subDays() on it
+    // wraps back around to a cutoff near "now" instead of the far past — silently
+    // turning "keep almost everything" into "delete everything". Refused outright.
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+
+    $this->artisan('sync:backups-clean', ['--older-than' => '99999999999999999999', '--no-interaction' => true])
+        ->expectsOutputToContain('The --older-than option must be at most 36500, got "99999999999999999999".')
+        ->assertFailed();
+
+    expect(File::isDirectory("{$this->backupPath}/2026-07-24_134530"))->toBeTrue();
+});
+
+it('accepts --older-than exactly at the maximum', function () {
+    $this->travelTo(Date::parse('2026-07-26 10:00:00'));
+
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+
+    $this->artisan('sync:backups-clean', ['--older-than' => '36500', '--no-interaction' => true])
+        ->expectsOutputToContain('No backups match the given retention criteria.')
+        ->assertSuccessful();
+
+    expect(File::isDirectory("{$this->backupPath}/2026-07-24_134530"))->toBeTrue();
+});
+
 it('fails with a friendly error when --keep or --older-than is a non-string value', function () {
     // `Command::option()` is typed generically (`array|bool|string|null`) across every
     // option on the command, even though a plain `{--keep=}` can never actually carry a

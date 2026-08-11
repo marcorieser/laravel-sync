@@ -138,4 +138,14 @@ class SyncException extends RuntimeException
     {
         return new self('You cannot combine --all with --keep or --older-than — they already select which backups to delete.');
     }
+
+    /**
+     * `--older-than` was given a value beyond what a real retention window needs —
+     * refused outright rather than risking day-arithmetic overflow silently inverting
+     * its intent (see `SyncBackupsCleanCommand::MAX_OLDER_THAN_DAYS`).
+     */
+    public static function retentionValueTooLarge(string $option, string $value, int $max): self
+    {
+        return new self(sprintf('The --%s option must be at most %d, got "%s".', $option, $max, $value));
+    }
 }

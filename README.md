@@ -163,7 +163,9 @@ Pass `--keep=N` and/or `--older-than=N` (days) to select backups by retention cr
 a cron job. `--keep=N` deletes everything but the N newest; `--older-than=N` deletes anything older than N
 days; combined, `--older-than` picks the candidates and `--keep` still protects the N newest among them, even
 if they're also older than the cutoff. Combining either with `--all` is rejected, since `--all` already
-selects every backup.
+selects every backup. `--older-than` is capped at 36500 days (~100 years) — comfortably beyond any real
+retention window, and refused outright rather than risking day-arithmetic overflow silently deleting
+everything instead of nothing.
 
 ### Testing a Connection
 
