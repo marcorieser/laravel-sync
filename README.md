@@ -96,6 +96,22 @@ The default `rsync` options, used whenever `--option` isn't passed on the comman
 ],
 ```
 
+### Excludes
+
+Optional, keyed by recipe name. An array of rsync `--exclude` patterns applied only when
+that recipe is synced, on top of the options above:
+
+```php
+'excludes' => [
+    'assets' => ['*.log', 'node_modules/'],
+],
+```
+
+If a path appears in more than one recipe you sync together, its command gets the union of
+every one of those recipes' excludes for that path. Excludes only apply to the sync itself —
+a `--backup` pass still copies the full path, since it's a fixed, independent copy (see
+below), not shaped by any rsync option.
+
 ### Backup Directory
 
 Relative to your project's root. When `--backup` is passed on a real pull, the local files

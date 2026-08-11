@@ -76,15 +76,27 @@ together:
 
 Used whenever a command doesn't receive explicit `-O`/`--option` flags.
 
-### 5. Set the backup directory (optional)
+### 5. Set per-recipe excludes (optional)
+
+```php
+'excludes' => [
+    'assets' => ['*.log', 'node_modules/'],
+],
+```
+
+Keyed by recipe name. Appended as `rsync --exclude` flags only when that recipe is synced, on top of `options`
+above — not applied to a `--backup` pass, which is a fixed, independent full copy. A path shared by more than
+one synced recipe gets the union of every one of those recipes' excludes.
+
+### 6. Set the backup directory (optional)
 
 ```php
 'backup_dir' => '.sync-backups',
 ```
 
-Relative to the app's root. Used when `--backup` is passed on a real pull (see step 6).
+Relative to the app's root. Used when `--backup` is passed on a real pull (see step 7).
 
-### 6. Run a sync
+### 7. Run a sync
 
 ```bash
 php artisan sync {push|pull} {remote} {recipe...} [options]
@@ -105,7 +117,7 @@ pull overwrites local files. Before the pull runs, the local files of the select
 sync's own rsync options); if that copy fails, the pull doesn't run. Pulling interactively without `--backup`
 prompts "Back up the local files before pulling?" before the rsync-options prompt.
 
-### 7. Preview before running (optional)
+### 8. Preview before running (optional)
 
 - `php artisan sync:list {push|pull} {remote} {recipe...}` — table of origin, target, options, and port
 - `php artisan sync:commands {push|pull} {remote} {recipe...}` — prints the exact `rsync` command(s) that would run
