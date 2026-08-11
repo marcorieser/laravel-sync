@@ -44,6 +44,12 @@ it('treats a flag outside the curated list as producing output', function () {
     expect((new RsyncOptions(['--archive', '--info=progress2']))->producesOutput())->toBeTrue();
 });
 
+it('does not treat an --exclude flag as producing output', function () {
+    $options = (new RsyncOptions(['--archive']))->withExcludes(['*.log']);
+
+    expect($options->producesOutput())->toBeFalse();
+});
+
 it('keeps a literal "0" flag instead of treating it as empty', function () {
     $options = RsyncOptions::resolve(['--archive', '0'], dry: false, verbose: false);
 
@@ -106,4 +112,16 @@ it('drops a trailing --backup-dir with no value instead of erroring', function (
     $options = RsyncOptions::resolve(['--archive', '--backup-dir'], dry: false, verbose: false, backup: true);
 
     expect($options->flags)->toBe(['--archive']);
+});
+
+it('appends an --exclude flag per pattern', function () {
+    $options = (new RsyncOptions(['--archive']))->withExcludes(['*.log', 'node_modules/']);
+
+    expect($options->flags)->toBe(['--archive', '--exclude=*.log', '--exclude=node_modules/']);
+});
+
+it('returns the same instance when there are no excludes', function () {
+    $options = new RsyncOptions(['--archive']);
+
+    expect($options->withExcludes([]))->toBe($options);
 });

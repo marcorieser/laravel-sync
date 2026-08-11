@@ -148,17 +148,44 @@ final readonly class RsyncOptions implements Stringable
      * Whether any of the resolved flags produce visible output while syncing.
      *
      * Flags outside the curated `AVAILABLE` list (e.g. a raw `--option=` override) are of
-     * unknown behavior and assumed to produce output, so streaming isn't silently suppressed.
+     * unknown behavior and assumed to produce output, so streaming isn't silently suppressed
+     * — except a `--exclude=PATTERN` flag (added by `withExcludes()`, never itself in
+     * `AVAILABLE` since its value is user-defined), which is explicitly known and produces
+     * none.
      */
     public function producesOutput(): bool
     {
         foreach ($this->flags as $flag) {
+            if (str_starts_with($flag, '--exclude=')) {
+                continue;
+            }
+
             if (! array_key_exists($flag, self::AVAILABLE) || in_array($flag, self::OUTPUT_PRODUCING, true)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Return a copy of these options with a `--exclude=PATTERN` flag appended for each
+     * given pattern — used to layer one recipe path's own excludes onto the sync's
+     * otherwise-shared rsync options, without mutating (or affecting any other path's
+     * copy of) the original.
+     *
+     * @param  array<int, string>  $excludes
+     */
+    public function withExcludes(array $excludes): self
+    {
+        if ($excludes === []) {
+            return $this;
+        }
+
+        return new self([
+            ...$this->flags,
+            ...array_map(fn (string $pattern) => "--exclude={$pattern}", $excludes),
+        ]);
     }
 
     public function __toString(): string

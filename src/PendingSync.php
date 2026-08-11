@@ -39,14 +39,21 @@ final readonly class PendingSync
     }
 
     /**
-     * Build one rsync command per resolved, de-duplicated recipe path.
+     * Build one rsync command per resolved, de-duplicated recipe path, each with that
+     * path's own recipe excludes layered onto the sync's shared rsync options.
      *
      * @return Collection<int, RsyncCommand>
      */
     public function commands(): Collection
     {
-        return $this->resolvedPaths()
-            ->map(fn (string $path) => new RsyncCommand($this->operation, $this->remote, $path, $this->options));
+        return $this->pathExcludes()
+            ->map(fn (array $excludes, string $path) => new RsyncCommand(
+                $this->operation,
+                $this->remote,
+                $path,
+                $this->options->withExcludes($excludes),
+            ))
+            ->values();
     }
 
     /**
@@ -66,21 +73,39 @@ final readonly class PendingSync
             return $empty;
         }
 
-        return $this->resolvedPaths()
+        return $this->pathExcludes()->keys()
             ->map(fn (string $path) => new BackupCommand($path, $this->backup));
     }
 
     /**
-     * Get every recipe path, flattened and de-duplicated.
+     * Map each resolved, de-duplicated recipe path to the union of exclude patterns
+     * from every selected recipe that includes it — a path can appear in more than one
+     * recipe, and each contributes its own excludes to that path's merged rsync
+     * command. Not applied to a backup pass (see `backups()`): a backed-up pull's own
+     * `BackupCommand` is a fixed, independent full copy, not affected by the sync's
+     * rsync options either.
      *
-     * @return Collection<int, string>
+     * Each path's contributing recipes' exclude lists are collected as-is during the
+     * loop and only deduplicated once, after the loop, rather than re-deduplicating
+     * the growing list on every recipe that shares the path.
+     *
+     * @return Collection<string, list<string>>
      */
-    private function resolvedPaths(): Collection
+    private function pathExcludes(): Collection
     {
-        return once(fn () => $this->recipes
-            ->flatMap(fn (Recipe $recipe) => $recipe->paths)
-            ->unique()
-            ->values());
+        return once(function () {
+            $excludes = [];
+
+            foreach ($this->recipes as $recipe) {
+                foreach ($recipe->paths as $path) {
+                    $excludes[$path][] = $recipe->excludes;
+                }
+            }
+
+            return collect($excludes)->map(
+                fn (array $lists) => array_values(array_unique(array_merge(...$lists))),
+            );
+        });
     }
 
     /**

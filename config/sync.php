@@ -43,6 +43,17 @@ return [
     ],
 
     /*
+    | Excludes
+    | Optional, keyed by recipe name. An array of rsync --exclude patterns applied only
+    | when that recipe is synced, on top of the options above.
+    */
+    'excludes' => [
+
+        // 'assets' => ['*.log', 'node_modules/'],
+
+    ],
+
+    /*
     | Backup Directory
     | Relative to your project's root. Before a real pull, when backups are enabled
     | (--backup / -B), the local files of the selected recipes are copied into a
