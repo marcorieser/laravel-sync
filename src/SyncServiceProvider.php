@@ -9,6 +9,7 @@ use MarcoRieser\Sync\Commands\SyncBackupsCleanCommand;
 use MarcoRieser\Sync\Commands\SyncCommand;
 use MarcoRieser\Sync\Commands\SyncCommandsCommand;
 use MarcoRieser\Sync\Commands\SyncListCommand;
+use MarcoRieser\Sync\Commands\SyncTestConnectionCommand;
 use Override;
 
 class SyncServiceProvider extends ServiceProvider
@@ -42,6 +43,7 @@ class SyncServiceProvider extends ServiceProvider
             SyncListCommand::class,
             SyncCommandsCommand::class,
             SyncBackupsCleanCommand::class,
+            SyncTestConnectionCommand::class,
         ]);
     }
 }
