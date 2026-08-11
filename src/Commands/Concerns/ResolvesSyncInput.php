@@ -54,11 +54,7 @@ trait ResolvesSyncInput
 
             $sync->guardNotSamePath($remote, $recipes);
 
-            $backup = $this->resolveBackup($operation) ? Backup::now($sync->backupDir()) : null;
-
-            if ($backup instanceof Backup) {
-                $sync->guardBackupNotNested($backup, $recipes);
-            }
+            $backup = $this->resolveBackup($operation) ? $sync->startBackup($recipes) : null;
 
             return new PendingSync($operation, $remote, $recipes, $this->resolveOptions($backup instanceof Backup), $backup);
         } catch (SyncException $exception) {

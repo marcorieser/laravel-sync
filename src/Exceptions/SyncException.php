@@ -100,4 +100,25 @@ class SyncException extends RuntimeException
             $path,
         ));
     }
+
+    /**
+     * The configured backup directory resolves outside the project, or to the project
+     * root itself — refused whether it's about to be written to (a backed-up pull) or
+     * cleaned (`sync:backups-clean`).
+     */
+    public static function backupDirUnsafe(string $dir): self
+    {
+        return new self(sprintf(
+            'The backup directory "%s" resolves outside your project, or to the project root itself. Set a backup_dir inside your project.',
+            $dir,
+        ));
+    }
+
+    /**
+     * No backup was selected and `--all` was not passed.
+     */
+    public static function noBackupSelected(): self
+    {
+        return new self('You must select at least one backup, or pass --all to delete every backup.');
+    }
 }

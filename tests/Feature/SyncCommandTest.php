@@ -210,6 +210,18 @@ it('fails with a friendly error when the backup directory is nested inside a rec
     Process::assertNothingRan();
 });
 
+it('fails with a friendly error when the backup directory resolves outside the project', function () {
+    config(['sync.backup_dir' => '../outside']);
+
+    $this->artisan('sync', [
+        'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'], '--backup' => true, '--no-interaction' => true,
+    ])
+        ->expectsOutputToContain('Set a backup_dir inside your project.')
+        ->assertFailed();
+
+    Process::assertNothingRan();
+});
+
 it('strips rsync\'s own backup flags from the pull command when --backup is passed', function () {
     $this->artisan('sync', [
         'operation' => 'pull', 'remote' => 'staging', 'recipe' => ['assets'],

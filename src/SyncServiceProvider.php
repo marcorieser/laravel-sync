@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarcoRieser\Sync;
 
 use Illuminate\Support\ServiceProvider;
+use MarcoRieser\Sync\Commands\SyncBackupsCleanCommand;
 use MarcoRieser\Sync\Commands\SyncCommand;
 use MarcoRieser\Sync\Commands\SyncCommandsCommand;
 use MarcoRieser\Sync\Commands\SyncListCommand;
@@ -40,6 +41,7 @@ class SyncServiceProvider extends ServiceProvider
             SyncCommand::class,
             SyncListCommand::class,
             SyncCommandsCommand::class,
+            SyncBackupsCleanCommand::class,
         ]);
     }
 }

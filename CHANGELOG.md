@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/marcorieser/laravel-sync/compare/v0.2.0...HEAD)
 
+- Add `sync:backups-clean` Artisan command to delete backup folders (interactive picker, `--all`, `--dry`, `--force`)
+
 ## [v0.2.0](https://github.com/marcorieser/laravel-sync/compare/v0.1.0...v0.2.0) - 2026-08-10
 
 - Add `--backup`/`-B` to back up local files before a real pull, into a timestamped folder under the configurable `backup_dir` (default `.sync-backups`)
