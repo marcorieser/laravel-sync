@@ -12,6 +12,66 @@
 
 A git-like artisan command to easily sync files and folders between environments via `rsync`.
 
+## Contents
+
+- [Quick Start](#quick-start)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Configuration](#configuration)
+  - [Remotes](#remotes)
+  - [Recipes](#recipes)
+  - [Options](#options)
+  - [Excludes](#excludes)
+  - [Backup Directory](#backup-directory)
+- [Usage](#usage)
+  - [Cleaning Up Backups](#cleaning-up-backups)
+  - [Testing a Connection](#testing-a-connection)
+- [Examples](#examples)
+- [Changelog](#changelog)
+- [Contributing](#contributing)
+- [Security Vulnerabilities](#security-vulnerabilities)
+- [Credits](#credits)
+- [License](#license)
+
+## Quick Start
+
+```bash
+composer require marcorieser/laravel-sync
+php artisan vendor:publish --tag="laravel-sync-config"
+```
+
+Add a remote and a recipe to the published `config/sync.php`:
+
+```php
+'remotes' => [
+    'production' => [
+        'user' => 'forge',
+        'host' => '104.26.3.113',
+        'root' => '/home/forge/example.com',
+    ],
+],
+
+'recipes' => [
+    'assets' => ['storage/app/assets/', 'storage/app/img/'],
+],
+```
+
+Then check the connection and try it out:
+
+```bash
+# Confirm SSH access and that "root" exists on the remote
+php artisan sync:test-connection production
+
+# Dry run: connects and reports what would change, without writing anything
+php artisan sync pull production assets --dry
+
+# Pull it for real
+php artisan sync pull production assets
+```
+
+Every config key is explained below in [Configuration](#configuration), and every command and option in
+[Usage](#usage) — or jump straight to [Examples](#examples) for more copy-pasteable commands.
+
 ## Requirements
 
 - `rsync` on both your local machine and the remote host
@@ -61,6 +121,8 @@ return [
 ];
 ```
 
+## Configuration
+
 ### Remotes
 
 Each remote needs a `root` path. Add `user` and `host` to sync with an actual server over `ssh`; omit both to
@@ -74,6 +136,11 @@ involved).
 | `port` | The SSH port to use. Defaults to `22`. |
 | `root` | The absolute path to the project's root folder. |
 | `read_only` | When `true`, blocks `push` to this remote. Defaults to `false`. |
+
+Once an SSH remote (`user`/`host`) is configured, run `php artisan sync:test-connection <remote>` to confirm
+access and that `root` exists before you rely on it for a real sync — see
+[Testing a Connection](#testing-a-connection). A local remote reports success immediately without checking
+`root`, since there's no connection to test.
 
 ### Recipes
 
@@ -110,7 +177,7 @@ that recipe is synced, on top of the options above:
 If a path appears in more than one recipe you sync together, its command gets the union of
 every one of those recipes' excludes for that path. Excludes only apply to the sync itself —
 a `--backup` pass still copies the full path, since it's a fixed, independent copy (see
-below), not shaped by any rsync option.
+[Backup Directory](#backup-directory)), not shaped by any rsync option.
 
 ### Backup Directory
 
@@ -122,7 +189,8 @@ of the selected recipes are copied here, into a timestamped folder, before the p
 ```
 
 Each backed-up pull adds another timestamped folder; nothing prunes old ones automatically. Add
-`backup_dir` to your `.gitignore` and run `php artisan sync:backups-clean` to clean it out periodically.
+`backup_dir` to your `.gitignore` and run `php artisan sync:backups-clean` to clean it out periodically —
+see [Cleaning Up Backups](#cleaning-up-backups).
 
 ## Usage
 
@@ -190,7 +258,7 @@ syncing anything — useful for catching a misconfigured remote (or a broken SSH
 partway through with an opaque `rsync` error. A local remote (no `user`/`host`) reports success immediately,
 without opening any connection.
 
-### Examples
+## Examples
 
 ```bash
 # Pull the "assets" recipe from "staging"
