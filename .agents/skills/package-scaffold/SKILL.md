@@ -27,7 +27,7 @@ Add package features in the right place and wire them through the service provid
 2. Put container bindings and `mergeConfigFrom` calls in `register()` when the host app must be able to override configuration.
 3. Put resource loading in boot-time methods with Laravel-native APIs such as `loadRoutesFrom`, `loadViewsFrom`, and `loadTranslationsFrom`.
 4. Guard console-only publishing and command registration with `runningInConsole()` before calling `publishes`, `publishesMigrations`, or `commands`.
-5. Name publish tags with the `laravel-sync-*` convention so consumers can target individual resource groups.
+5. Name publish tags with the `laravel-sync-*` convention so consumers can target individual resource groups. The package publishes `laravel-sync` (everything) and `laravel-sync-config`.
 6. Add tests for the observable provider behavior: merged config, loaded routes, publish tags, or command registration.
 
 Provider wiring anti-patterns:
@@ -39,21 +39,21 @@ Provider wiring anti-patterns:
 
 ## References
 
-- `src/*ServiceProvider.php`
-- `config/*.php`
-- `routes/*.php`
-- `resources/views/`
-- `lang/`
-- `database/migrations/`
-- `public/`
-- `src/Console/Commands/`
+- `src/SyncServiceProvider.php`
+- `config/sync.php`
+- `src/Commands/`
+- `src/Commands/Concerns/`
 - `tests/Feature/` and `tests/Unit/`
+
+This package currently ships config and Artisan commands only — there are no routes, views,
+translations, migrations, or public assets. Create those directories only if a requested
+capability genuinely needs one, not to match a conventional package layout.
 
 ## Examples
 
-- Add an Artisan command: create the command class under `src/Console/Commands`, register it in the `commands` array inside the `runningInConsole()` guard, add a feature test for observable console output, and document the command if it is user-facing.
-- Add a publishable migration: place the migration in `database/migrations`, wire it through a console-guarded `publishesMigrations` call with a `laravel-sync-migrations` tag, and test publish behavior with Testbench.
-- Wire a new publish tag by adding a `publishes` map inside the existing console-guarded publishing method and naming the tag with `laravel-sync-*`.
+- Add an Artisan command: create the command class under `src/Commands`, register it in the `commands` array inside the `runningInConsole()` guard, add a feature test for observable console output, and document the command if it is user-facing.
+- Share input-resolution logic between commands by extending the traits in `src/Commands/Concerns/`, rather than adding a base command class.
+- Wire a new publish tag by adding a `publishes` map inside the existing console-guarded publishing method and naming the tag with `laravel-sync-*` (currently `laravel-sync` and `laravel-sync-config`).
 
 ## Anti-Patterns
 
