@@ -31,7 +31,9 @@ class SyncBackupsCleanCommand extends Command
     protected $signature = 'sync:backups-clean
         {--A|all : Delete every backup}
         {--D|dry : Preview which backups would be deleted}
-        {--F|force : Skip the confirmation prompt}';
+        {--F|force : Skip the confirmation prompt}
+        {--K|keep= : Keep the N newest backups, deleting the rest}
+        {--older-than= : Delete backups older than N days}';
 
     /**
      * The command description.
@@ -46,6 +48,11 @@ class SyncBackupsCleanCommand extends Command
         $sync = resolve(Sync::class);
 
         try {
+            // Validated before backups() and the empty check: a malformed value or
+            // --all conflict must fail the same way whether or not backups exist —
+            // no silent "No backups found" on a typo'd flag the one time the dir's empty.
+            [$keep, $olderThan] = $this->resolveRetentionOptions();
+
             $backups = $sync->backups();
 
             if ($backups->isEmpty()) {
@@ -54,7 +61,13 @@ class SyncBackupsCleanCommand extends Command
                 return self::SUCCESS;
             }
 
-            $selected = $this->resolveSelection($backups);
+            $selected = $this->resolveSelection($backups, $keep, $olderThan, $sync);
+
+            if ($selected->isEmpty()) {
+                $this->info('No backups match the given retention criteria.');
+
+                return self::SUCCESS;
+            }
         } catch (SyncException $exception) {
             $this->error($exception->getMessage());
 
@@ -79,14 +92,19 @@ class SyncBackupsCleanCommand extends Command
     }
 
     /**
-     * Resolve which backups to delete: every backup with `--all`, an interactive
-     * multiselect otherwise, or a friendly error when neither applies.
+     * Resolve which backups to delete: by retention criteria (`--keep`/`--older-than`)
+     * when either is given, every backup with `--all`, an interactive multiselect
+     * otherwise, or a friendly error when nothing applies.
      *
      * @param  Collection<int, BackupFolder>  $backups
      * @return Collection<int, BackupFolder>
      */
-    private function resolveSelection(Collection $backups): Collection
+    private function resolveSelection(Collection $backups, ?int $keep, ?int $olderThan, Sync $sync): Collection
     {
+        if ($keep !== null || $olderThan !== null) {
+            return $sync->filterByRetention($backups, $keep, $olderThan);
+        }
+
         if ((bool) $this->option('all')) {
             return $backups;
         }
@@ -102,6 +120,70 @@ class SyncBackupsCleanCommand extends Command
         );
 
         return $backups->whereIn('name', $names, true)->values();
+    }
+
+    /**
+     * `--all` conflict is checked by presence alone, before parsing, so
+     * `--all --keep=abc` reports the conflict rather than a value error that would
+     * misleadingly suggest the number format is the problem.
+     *
+     * @return array{0: ?int, 1: ?int}
+     */
+    private function resolveRetentionOptions(): array
+    {
+        $hasRetentionOption = $this->option('keep') !== null || $this->option('older-than') !== null;
+
+        if ($hasRetentionOption && (bool) $this->option('all')) {
+            throw SyncException::conflictingBackupSelection();
+        }
+
+        if (! $hasRetentionOption) {
+            return [null, null];
+        }
+
+        return [
+            $this->resolveNonNegativeIntOption('keep'),
+            // Bounded, unlike `--keep`: fed into now()->subDays(), a huge value wraps
+            // Carbon's day arithmetic back around to a cutoff near *now*, silently
+            // inverting intent from "keep almost everything" to "delete everything".
+            // `--keep` has no such arithmetic — take() on a huge value just harmlessly
+            // takes the whole (smaller) backup list.
+            $this->resolveNonNegativeIntOption('older-than', self::MAX_OLDER_THAN_DAYS),
+        ];
+    }
+
+    /**
+     * Comfortably beyond any real backup-retention window (over 100 years), while
+     * staying far short of where `Carbon::subDays()`'s day-to-timestamp arithmetic
+     * risks overflowing.
+     */
+    private const int MAX_OLDER_THAN_DAYS = 36500;
+
+    private function resolveNonNegativeIntOption(string $option, ?int $max = null): ?int
+    {
+        $value = $this->option($option);
+
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_string($value)) {
+            // Not reachable via `{--keep=}`'s single-value definition, but option()
+            // is typed generically across all options, so this guards the cast below.
+            throw SyncException::invalidRetentionValue($option, get_debug_type($value));
+        }
+
+        if (! ctype_digit($value)) {
+            throw SyncException::invalidRetentionValue($option, $value);
+        }
+
+        $parsed = (int) $value;
+
+        if ($max !== null && $parsed > $max) {
+            throw SyncException::retentionValueTooLarge($option, $value, $max);
+        }
+
+        return $parsed;
     }
 
     /**

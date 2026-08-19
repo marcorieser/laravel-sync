@@ -129,6 +129,8 @@ php artisan sync {push|pull} {remote} {recipe...} [options]
 | `-A`, `--all` | Sync every configured recipe. On `sync:backups-clean`, delete every backup. |
 | `-B`, `--backup` | Back up local files to `backup_dir` before a real pull. |
 | `-F`, `--force` | `sync:backups-clean` only. Skip the confirmation prompt. |
+| `-K`, `--keep=` | `sync:backups-clean` only. Keep the N newest backups, deleting the rest. |
+| `--older-than=` | `sync:backups-clean` only. Delete backups older than N days. |
 | `-v` | Show real-time output while syncing (progress, stats, ...). |
 
 Any argument you omit is prompted for interactively (operation, remote, recipes, and rsync options), unless
@@ -151,10 +153,19 @@ anything in it that isn't a timestamped backup folder) untouched. Run it without
 from an interactive list (with size and age), or pass `--all` to select every one. Add `--dry` to preview
 what would be deleted without deleting anything, and `--force` to skip the confirmation prompt.
 
-Running it with `--no-interaction` and without `--all` fails fast with a friendly error instead of deleting
-anything — there's no picker to fall back to, and deleting every backup by default would be surprising. The
-confirmation prompt only appears when running interactively, so `--no-interaction --all` (e.g. in a cron job)
-deletes immediately without needing `--force`.
+Running it with `--no-interaction` and without `--all` or a retention option fails fast with a friendly error
+instead of deleting anything — there's no picker to fall back to, and deleting every backup by default would
+be surprising. The confirmation prompt only appears when running interactively, so `--no-interaction --all`
+(e.g. in a cron job) deletes immediately without needing `--force`.
+
+Pass `--keep=N` and/or `--older-than=N` (days) to select backups by retention criteria instead of picking or
+`--all` — the only selection method that works non-interactively without `--all`, making it the one to use in
+a cron job. `--keep=N` deletes everything but the N newest; `--older-than=N` deletes anything older than N
+days; combined, `--older-than` picks the candidates and `--keep` still protects the N newest among them, even
+if they're also older than the cutoff. Combining either with `--all` is rejected, since `--all` already
+selects every backup. `--older-than` is capped at 36500 days (~100 years) — comfortably beyond any real
+retention window, and refused outright rather than risking day-arithmetic overflow silently deleting
+everything instead of nothing.
 
 ### Testing a Connection
 
@@ -199,6 +210,9 @@ php artisan sync:backups-clean --all --force
 
 # Preview which backups --all would delete
 php artisan sync:backups-clean --all --dry
+
+# Cron-safe cleanup: keep the 5 newest backups, delete anything else older than 30 days
+php artisan sync:backups-clean --keep=5 --older-than=30 --no-interaction
 ```
 
 ## Changelog

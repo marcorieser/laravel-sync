@@ -2,7 +2,7 @@
 
 ## [Unreleased](https://github.com/marcorieser/laravel-sync/compare/v0.2.0...HEAD)
 
-- Add `sync:backups-clean` Artisan command to delete backup folders (interactive picker, `--all`, `--dry`, `--force`)
+- Add `sync:backups-clean` Artisan command to delete backup folders (interactive picker, `--all`, `--dry`, `--force`, `--keep=`, `--older-than=`)
 - Add `sync:test-connection` Artisan command to test the SSH connection (and root path) for a remote
 
 ## [v0.2.0](https://github.com/marcorieser/laravel-sync/compare/v0.1.0...v0.2.0) - 2026-08-10

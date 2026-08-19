@@ -174,6 +174,34 @@ class Sync
     }
 
     /**
+     * Select backups by retention criteria: older than `$olderThan` days (if given),
+     * excluding the `$keep` newest (if given) — so the two combine into the common
+     * "delete anything old, but never touch the N most recent" rotation, and `--keep`
+     * alone still works as a plain backup-count cap.
+     *
+     * `$backups` must already be sorted newest-first (as `backups()` returns them), so
+     * the N newest are simply its first N.
+     *
+     * @param  Collection<int, BackupFolder>  $backups
+     * @return Collection<int, BackupFolder>
+     */
+    public function filterByRetention(Collection $backups, ?int $keep, ?int $olderThan): Collection
+    {
+        $candidates = $backups;
+
+        if ($olderThan !== null) {
+            $cutoff = now()->subDays($olderThan);
+            $candidates = $candidates->filter(fn (BackupFolder $folder) => $folder->createdAt->lt($cutoff));
+        }
+
+        if ($keep !== null) {
+            $candidates = $candidates->whereNotIn('name', $backups->take($keep)->pluck('name'), true);
+        }
+
+        return $candidates->values();
+    }
+
+    /**
      * Guard against a `backup_dir` that would write or delete outside the project.
      *
      * Takes the directory to check explicitly, rather than always reading
