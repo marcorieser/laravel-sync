@@ -2,11 +2,6 @@
 
 ## [Unreleased](https://github.com/vitamin2ag/laravel-sync/compare/v0.3.0...HEAD)
 
-- Add `sync:backups-clean` Artisan command to delete backup folders (interactive picker, `--all`, `--dry`, `--force`, `--keep=`, `--older-than=`)
-- Add `sync:test-connection` Artisan command to test the SSH connection (and root path) for a remote
-- Add `excludes` config key: per-recipe `rsync --exclude` patterns, keyed by recipe name
-- Move the package to VITAMIN 2: Composer package renamed to `vitamin2/laravel-sync`, PHP namespace renamed to `Vitamin2\Sync\`, repo moved to `github.com/vitamin2ag/laravel-sync`
-
 ## [v0.3.0](https://github.com/vitamin2ag/laravel-sync/compare/v0.2.0...v0.3.0) - 2026-08-19
 
 - Add `sync:backups-clean` Artisan command to delete backup folders (interactive picker, `--all`, `--dry`, `--force`, `--keep=`, `--older-than=`)
