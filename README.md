@@ -22,6 +22,7 @@ A git-like artisan command to easily sync files and folders between environments
   - [Recipes](#recipes)
   - [Options](#options)
   - [Excludes](#excludes)
+  - [Excludes From](#excludes-from)
   - [Backup Directory](#backup-directory)
 - [Usage](#usage)
   - [Cleaning Up Backups](#cleaning-up-backups)
@@ -179,6 +180,23 @@ If a path appears in more than one recipe you sync together, its command gets th
 every one of those recipes' excludes for that path. Excludes only apply to the sync itself —
 a `--backup` pass still copies the full path, since it's a fixed, independent copy (see
 [Backup Directory](#backup-directory)), not shaped by any rsync option.
+
+### Excludes From
+
+Optional, keyed by recipe name. An array of file paths (relative to your project's root), each
+containing rsync exclude patterns (one per line), applied via rsync's own `--exclude-from` when
+that recipe is synced — useful for a long exclude list you'd rather keep in its own file than
+inline in `excludes`:
+
+```php
+'excludes_from' => [
+    'assets' => ['.rsync-excludes'],
+],
+```
+
+Combines with `excludes` rather than replacing it. A configured file that doesn't exist fails
+fast with a friendly error before anything is synced — checked only for the recipe(s) actually
+being synced, not every recipe defined in your config.
 
 ### Backup Directory
 
