@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 
 /**
  * Shared "confirm before a destructive action, unless skipped" gate for the sync
- * commands that actually run something (`sync`, `sync:backups-clean`).
+ * commands that actually run something (`sync`, `sync:backups-clean`, `sync:backups-restore`).
  *
  * @mixin Command
  */

@@ -148,4 +148,20 @@ class SyncException extends RuntimeException
     {
         return new self(sprintf('The --%s option must be at most %d, got "%s".', $option, $max, $value));
     }
+
+    /**
+     * No backup was given to restore and none could be prompted for.
+     */
+    public static function backupRequired(): self
+    {
+        return new self('You must specify a backup to restore.');
+    }
+
+    /**
+     * The given backup name doesn't match any backup folder under `backup_dir`.
+     */
+    public static function unknownBackup(string $name): self
+    {
+        return new self(sprintf('The backup "%s" was not found.', $name));
+    }
 }
