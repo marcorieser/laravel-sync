@@ -120,6 +120,7 @@ php artisan sync {push|pull} {remote} {recipe...} [options]
 | `sync:list` | Preview the origin, target, options, and port in a table, without syncing. |
 | `sync:commands` | Print the `rsync` commands that would be run, without syncing. |
 | `sync:backups-clean` | Delete backup folders created by a backed-up pull. |
+| `sync:test-connection` | Test the SSH connection (and root path) for a remote. |
 
 | Option | Description |
 | --- | --- |
@@ -155,6 +156,13 @@ anything — there's no picker to fall back to, and deleting every backup by def
 confirmation prompt only appears when running interactively, so `--no-interaction --all` (e.g. in a cron job)
 deletes immediately without needing `--force`.
 
+### Testing a Connection
+
+`sync:test-connection` authenticates to a remote over SSH and confirms its `root` path exists, without
+syncing anything — useful for catching a misconfigured remote (or a broken SSH setup) before a real sync fails
+partway through with an opaque `rsync` error. A local remote (no `user`/`host`) reports success immediately,
+without opening any connection.
+
 ### Examples
 
 ```bash
@@ -176,6 +184,9 @@ php artisan sync push production --all
 # Preview what would run, without syncing
 php artisan sync:list pull staging assets
 php artisan sync:commands pull staging assets
+
+# Check the SSH connection and root path for a remote before syncing
+php artisan sync:test-connection staging
 
 # Fully interactive
 php artisan sync

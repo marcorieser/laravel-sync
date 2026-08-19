@@ -8,6 +8,7 @@ use Illuminate\Support\ServiceProvider;
 use MarcoRieser\Sync\Commands\SyncCommand;
 use MarcoRieser\Sync\Commands\SyncCommandsCommand;
 use MarcoRieser\Sync\Commands\SyncListCommand;
+use MarcoRieser\Sync\Commands\SyncTestConnectionCommand;
 use MarcoRieser\Sync\Sync;
 use MarcoRieser\Sync\SyncServiceProvider as PackageServiceProvider;
 
@@ -21,14 +22,16 @@ it('registers the sync service as a singleton', function () {
     expect(resolve(Sync::class))->toBe(resolve(Sync::class));
 });
 
-it('registers the sync, sync:list, and sync:commands artisan commands', function () {
+it('registers the sync, sync:list, sync:commands, and sync:test-connection artisan commands', function () {
     expect(Artisan::all())
         ->toHaveKey('sync')
         ->toHaveKey('sync:list')
         ->toHaveKey('sync:commands')
+        ->toHaveKey('sync:test-connection')
         ->and(Artisan::all()['sync'])->toBeInstanceOf(SyncCommand::class)
         ->and(Artisan::all()['sync:list'])->toBeInstanceOf(SyncListCommand::class)
-        ->and(Artisan::all()['sync:commands'])->toBeInstanceOf(SyncCommandsCommand::class);
+        ->and(Artisan::all()['sync:commands'])->toBeInstanceOf(SyncCommandsCommand::class)
+        ->and(Artisan::all()['sync:test-connection'])->toBeInstanceOf(SyncTestConnectionCommand::class);
 });
 
 it('registers the config publish tag', function () {

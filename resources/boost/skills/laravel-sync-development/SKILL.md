@@ -14,7 +14,7 @@ push or pull files and folders between environments (e.g. local, staging, produc
 
 ## Primary Goal
 
-- apply the `marcorieser/laravel-sync` package's public API (config, `sync`, `sync:list`, `sync:commands`, `sync:backups-clean`) in the smallest correct way
+- apply the `marcorieser/laravel-sync` package's public API (config, `sync`, `sync:list`, `sync:commands`, `sync:backups-clean`, `sync:test-connection`) in the smallest correct way
 
 ## Prerequisites
 
@@ -127,6 +127,16 @@ Running it with `--no-interaction` and without `--all` fails fast with a clear e
 anything — there's no picker to fall back to. The confirmation prompt only shows when running interactively,
 so `--no-interaction --all` (e.g. in a scheduled task) deletes immediately without needing `--force`.
 
+### 9. Test a remote's connection (optional)
+
+```bash
+php artisan sync:test-connection {remote}
+```
+
+Authenticates to the remote over SSH and confirms its `root` exists, without syncing anything — catches a
+misconfigured remote or broken SSH setup before a real sync fails partway through. A local remote (no
+`user`/`host`) reports success immediately, without opening any connection.
+
 ## Rules, References, and Templates
 
 Read before executing:
@@ -157,6 +167,9 @@ php artisan sync:commands push production assets
 
 # Delete every backup without a confirmation prompt (e.g. in a scheduled task)
 php artisan sync:backups-clean --all --force
+
+# Check the SSH connection and root path for a remote before syncing
+php artisan sync:test-connection production
 ```
 
 ## Anti-patterns

@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace MarcoRieser\Sync\Commands\Concerns;
 
-use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use MarcoRieser\Sync\Data\Backup;
 use MarcoRieser\Sync\Data\Recipe;
-use MarcoRieser\Sync\Data\Remote;
 use MarcoRieser\Sync\Enums\Operation;
 use MarcoRieser\Sync\Exceptions\SyncException;
 use MarcoRieser\Sync\PendingSync;
@@ -20,7 +18,6 @@ use ValueError;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;
-use function Laravel\Prompts\select;
 
 /**
  * Shared argument/option resolution for the sync commands.
@@ -29,6 +26,8 @@ use function Laravel\Prompts\select;
  */
 trait ResolvesSyncInput
 {
+    use ResolvesRemote;
+
     /**
      * Resolve the operation, remote, recipes, and rsync options for this run, and prepare the sync.
      *
@@ -64,11 +63,6 @@ trait ResolvesSyncInput
         }
     }
 
-    protected function syncService(): Sync
-    {
-        return resolve(Sync::class);
-    }
-
     protected function resolveOperation(): Operation
     {
         $value = $this->resolveArgumentOrPrompt(
@@ -83,20 +77,6 @@ trait ResolvesSyncInput
         } catch (ValueError $exception) {
             throw SyncException::invalidOperation($exception);
         }
-    }
-
-    protected function resolveRemote(): Remote
-    {
-        $sync = $this->syncService();
-
-        $value = $this->resolveArgumentOrPrompt(
-            argument: 'remote',
-            label: 'Which remote do you want to sync with?',
-            options: $sync->remotes()->keys()->all(),
-            missingException: fn () => SyncException::remoteRequired(),
-        );
-
-        return $sync->remote($value);
     }
 
     /**
@@ -197,28 +177,6 @@ trait ResolvesSyncInput
             verbose: $verbose,
             backup: $backup,
         );
-    }
-
-    /**
-     * Read a command argument, prompting for it interactively when missing,
-     * and fail with `$missingException` when it's still not a non-empty string.
-     *
-     * @param  array<int|string, string>  $options
-     * @param  Closure(): SyncException  $missingException
-     */
-    private function resolveArgumentOrPrompt(string $argument, string $label, array $options, Closure $missingException): string
-    {
-        $value = $this->argument($argument);
-
-        if (! is_string($value) && $this->input->isInteractive()) {
-            $value = select(label: $label, options: $options);
-        }
-
-        if (! is_string($value) || $value === '') {
-            throw $missingException();
-        }
-
-        return $value;
     }
 
     /**
