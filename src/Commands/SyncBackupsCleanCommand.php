@@ -48,12 +48,9 @@ class SyncBackupsCleanCommand extends Command
         $sync = resolve(Sync::class);
 
         try {
-            // Resolved before `backups()` runs, and before the empty-directory check
-            // below returns early: a malformed `--keep`/`--older-than` value, or either
-            // combined with `--all`, must fail the same way regardless of whether any
-            // backups currently exist — a cron job with a typo'd flag shouldn't get a
-            // silent, misleading "No backups found" the one time the directory is
-            // empty, only to fail for real the next time it isn't.
+            // Validated before backups() and the empty check: a malformed value or
+            // --all conflict must fail the same way whether or not backups exist —
+            // no silent "No backups found" on a typo'd flag the one time the dir's empty.
             [$keep, $olderThan] = $this->resolveRetentionOptions();
 
             $backups = $sync->backups();
@@ -126,11 +123,9 @@ class SyncBackupsCleanCommand extends Command
     }
 
     /**
-     * Parse `--keep`/`--older-than` into non-negative integers, throwing a friendly
-     * error for a value that isn't one, or for either combined with `--all` — checked
-     * by presence alone, before parsing, so `--all --keep=abc` reports the conflict
-     * (fix: drop `--keep`) rather than the value error (fix: correct the number), which
-     * would misleadingly suggest the number format is the actual problem.
+     * `--all` conflict is checked by presence alone, before parsing, so
+     * `--all --keep=abc` reports the conflict rather than a value error that would
+     * misleadingly suggest the number format is the problem.
      *
      * @return array{0: ?int, 1: ?int}
      */
@@ -148,13 +143,11 @@ class SyncBackupsCleanCommand extends Command
 
         return [
             $this->resolveNonNegativeIntOption('keep'),
-            // Bounded, unlike `--keep`: `Sync::filterByRetention()` feeds this straight
-            // into `now()->subDays()`, and a huge-but-still-`ctype_digit` value (e.g.
-            // anywhere near PHP_INT_MAX) makes Carbon's day arithmetic wrap back around
-            // to a cutoff near *now* instead of the far past — silently inverting the
-            // option's intent from "keep almost everything" to "delete everything".
-            // `--keep` has no such arithmetic to overflow: `take($keep)` on a huge value
-            // just harmlessly takes the whole (much smaller) backup list.
+            // Bounded, unlike `--keep`: fed into now()->subDays(), a huge value wraps
+            // Carbon's day arithmetic back around to a cutoff near *now*, silently
+            // inverting intent from "keep almost everything" to "delete everything".
+            // `--keep` has no such arithmetic — take() on a huge value just harmlessly
+            // takes the whole (smaller) backup list.
             $this->resolveNonNegativeIntOption('older-than', self::MAX_OLDER_THAN_DAYS),
         ];
     }
@@ -175,10 +168,8 @@ class SyncBackupsCleanCommand extends Command
         }
 
         if (! is_string($value)) {
-            // Not reachable through `{--keep=}`'s own (single-value) definition — Symfony
-            // Console only ever returns an array for a `*`-repeatable option — but
-            // `Command::option()` is typed generically across every option on the
-            // command, so this still has to be handled to avoid an unsafe cast below.
+            // Not reachable via `{--keep=}`'s single-value definition, but option()
+            // is typed generically across all options, so this guards the cast below.
             throw SyncException::invalidRetentionValue($option, get_debug_type($value));
         }
 
