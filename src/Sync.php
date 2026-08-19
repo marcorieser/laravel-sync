@@ -52,8 +52,19 @@ class Sync
                 throw SyncException::noRecipesConfigured();
             }
 
+            // Read as a whole array and indexed into by literal key, not
+            // `config("sync.excludes.{$name}")`: a recipe name containing a "." (e.g.
+            // "assets.images") would otherwise be misread by `config()`'s own
+            // dot-notation as a nested path instead of the literal key.
+            /** @var array<string, array<int, string>> $excludes */
+            $excludes = config('sync.excludes', []);
+
             return collect($recipes)->map(
-                fn (array $paths, string $name) => Recipe::fromArray($name, $paths),
+                fn (array $paths, string $name) => Recipe::fromArray(
+                    $name,
+                    $paths,
+                    self::filterStrings((array) ($excludes[$name] ?? [])),
+                ),
             );
         });
     }

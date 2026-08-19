@@ -39,14 +39,20 @@ final readonly class PendingSync
     }
 
     /**
-     * Build one rsync command per resolved, de-duplicated recipe path.
+     * Build one rsync command per resolved, de-duplicated recipe path, each with that
+     * path's own recipe excludes layered onto the sync's shared rsync options.
      *
      * @return Collection<int, RsyncCommand>
      */
     public function commands(): Collection
     {
-        return $this->resolvedPaths()
-            ->map(fn (string $path) => new RsyncCommand($this->operation, $this->remote, $path, $this->options));
+        return $this->pathExcludes()
+            ->map(fn (array $entry) => new RsyncCommand(
+                $this->operation,
+                $this->remote,
+                $entry['path'],
+                $this->options->withExcludes($entry['excludes']),
+            ));
     }
 
     /**
@@ -66,21 +72,66 @@ final readonly class PendingSync
             return $empty;
         }
 
-        return $this->resolvedPaths()
-            ->map(fn (string $path) => new BackupCommand($path, $this->backup));
+        return $this->pathExcludes()
+            ->map(fn (array $entry) => new BackupCommand($entry['path'], $this->backup));
     }
 
     /**
-     * Get every recipe path, flattened and de-duplicated.
+     * De-duplicated recipe path → union of excludes from every recipe containing it.
+     * Not applied to backups() — a backup's BackupCommand is a fixed full copy.
      *
-     * @return Collection<int, string>
+     * Not keyed by path in a native array/Collection: a purely-numeric path (e.g.
+     * `"123"` in `releases/123/`) gets silently coerced to an int array key by PHP,
+     * crashing the `string $path`-typed closures above under strict_types. Each path
+     * is tracked as a value instead, found via strict `array_search(..., true)`.
+     *
+     * @return Collection<int, array{path: string, excludes: array<int, string>}>
      */
-    private function resolvedPaths(): Collection
+    private function pathExcludes(): Collection
     {
-        return once(fn () => $this->recipes
-            ->flatMap(fn (Recipe $recipe) => $recipe->paths)
-            ->unique()
-            ->values());
+        return once(function () {
+            /** @var list<array{path: string, excludes: array<int, string>}> $entries */
+            $entries = [];
+
+            foreach ($this->recipes as $recipe) {
+                foreach ($recipe->paths as $path) {
+                    $index = $this->indexOfPath($entries, $path);
+
+                    if ($index === null) {
+                        $entries[] = ['path' => $path, 'excludes' => $recipe->excludes];
+
+                        continue;
+                    }
+
+                    $entries[$index] = [
+                        'path' => $path,
+                        'excludes' => array_values(array_unique([
+                            ...$entries[$index]['excludes'],
+                            ...$recipe->excludes,
+                        ])),
+                    ];
+                }
+            }
+
+            return collect($entries);
+        });
+    }
+
+    /**
+     * Find the index of the entry for `$path`, or null if none exists yet — a plain
+     * value search, not an array-key lookup (see `pathExcludes()`'s docblock for why).
+     *
+     * @param  list<array{path: string, excludes: array<int, string>}>  $entries
+     */
+    private function indexOfPath(array $entries, string $path): ?int
+    {
+        foreach ($entries as $index => $entry) {
+            if ($entry['path'] === $path) {
+                return $index;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -69,6 +69,31 @@ it('throws when no recipes are configured', function () {
     resolve(Sync::class)->recipes();
 })->throws(SyncException::class, 'You need to define at least one recipe in your config/sync.php file.');
 
+it('hydrates a recipe\'s excludes from the separate excludes config key, keyed by recipe name', function () {
+    config(['sync.excludes' => ['assets' => ['*.log', 'node_modules/']]]);
+
+    $recipe = resolve(Sync::class)->recipes()->get('assets');
+
+    expect($recipe->excludes)->toBe(['*.log', 'node_modules/']);
+});
+
+it('defaults a recipe\'s excludes to an empty array when none are configured for it', function () {
+    $recipe = resolve(Sync::class)->recipes()->get('assets');
+
+    expect($recipe->excludes)->toBe([]);
+});
+
+it('resolves excludes for a recipe name containing a dot, without config() misreading it as a nested path', function () {
+    config([
+        'sync.recipes' => ['assets.images' => ['storage/app/img/']],
+        'sync.excludes' => ['assets.images' => ['*.tmp']],
+    ]);
+
+    $recipe = resolve(Sync::class)->recipes()->get('assets.images');
+
+    expect($recipe->excludes)->toBe(['*.tmp']);
+});
+
 it('resolves a single remote by name', function () {
     expect(resolve(Sync::class)->remote('staging'))->toBeInstanceOf(Remote::class);
 });

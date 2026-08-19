@@ -4,6 +4,7 @@
 
 - Add `sync:backups-clean` Artisan command to delete backup folders (interactive picker, `--all`, `--dry`, `--force`, `--keep=`, `--older-than=`)
 - Add `sync:test-connection` Artisan command to test the SSH connection (and root path) for a remote
+- Add `excludes` config key: per-recipe `rsync --exclude` patterns, keyed by recipe name
 
 ## [v0.2.0](https://github.com/marcorieser/laravel-sync/compare/v0.1.0...v0.2.0) - 2026-08-10
 

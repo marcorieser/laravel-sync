@@ -29,6 +29,65 @@ it('builds one command per unique recipe path', function () {
     ]);
 });
 
+it('appends a recipe\'s own excludes to that recipe\'s rsync commands', function () {
+    $recipes = collect([
+        new Recipe('assets', ['storage/app/assets/'], ['*.log']),
+        new Recipe('env', ['.env']),
+    ]);
+
+    $pending = new PendingSync(Operation::Push, $this->remote, $recipes, new RsyncOptions(['--archive']));
+    $commands = $pending->commands()->keyBy->path;
+
+    expect($commands['storage/app/assets/']->options->flags)->toBe(['--archive', '--exclude=*.log'])
+        ->and($commands['.env']->options->flags)->toBe(['--archive']);
+});
+
+it('handles a purely numeric recipe path without PHP coercing it to an array key', function () {
+    // "123" (unlike "releases/123/") is exactly the shape PHP silently coerces to an
+    // int array key wherever it's used as one — the bug this test guards against.
+    // Looked up below via firstWhere() (a value search), not keyBy() (which would
+    // hit the very same PHP-level coercion in the test itself, independent of
+    // whether the production code being tested still has the bug).
+    $recipes = collect([
+        new Recipe('releases', ['123', '124']),
+        new Recipe('releases-again', ['123'], ['*.log']),
+    ]);
+
+    $pending = new PendingSync(Operation::Push, $this->remote, $recipes, new RsyncOptions(['--archive']));
+    $commands = $pending->commands();
+
+    expect($commands->map->path->all())->toBe(['123', '124'])
+        ->and($commands->firstWhere('path', '123')->options->flags)->toBe(['--archive', '--exclude=*.log'])
+        ->and($commands->firstWhere('path', '124')->options->flags)->toBe(['--archive']);
+});
+
+it('merges excludes from every recipe that shares a path', function () {
+    $recipes = collect([
+        new Recipe('assets', ['storage/app/assets/'], ['*.log']),
+        new Recipe('assets-again', ['storage/app/assets/'], ['node_modules/']),
+    ]);
+
+    $pending = new PendingSync(Operation::Push, $this->remote, $recipes, new RsyncOptions(['--archive']));
+
+    expect($pending->commands()->sole()->options->flags)->toBe([
+        '--archive', '--exclude=*.log', '--exclude=node_modules/',
+    ]);
+});
+
+it('does not apply recipe excludes to the backup pass', function () {
+    $recipes = collect([new Recipe('assets', ['storage/app/assets/'], ['*.log'])]);
+
+    $pending = new PendingSync(
+        Operation::Pull,
+        $this->remote,
+        $recipes,
+        new RsyncOptions(['--archive']),
+        new Backup('.sync-backups', '2026-07-24_134530'),
+    );
+
+    expect($pending->backups()->sole()->toArgs())->not->toContain('--exclude=*.log');
+});
+
 it('runs one process per resolved command', function () {
     Process::fake();
 
