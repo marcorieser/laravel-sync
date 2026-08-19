@@ -62,8 +62,8 @@ Then check the connection and try it out:
 # Confirm SSH access and that "root" exists on the remote
 php artisan sync:test-connection production
 
-# See the rsync command that would run, without running it
-php artisan sync:commands pull production assets
+# Dry run: connects and reports what would change, without writing anything
+php artisan sync pull production assets --dry
 
 # Pull it for real
 php artisan sync pull production assets
@@ -137,8 +137,10 @@ involved).
 | `root` | The absolute path to the project's root folder. |
 | `read_only` | When `true`, blocks `push` to this remote. Defaults to `false`. |
 
-Once a remote is configured, run `php artisan sync:test-connection <remote>` to confirm SSH access and that
-`root` exists before you rely on it for a real sync — see [Testing a Connection](#testing-a-connection).
+Once an SSH remote (`user`/`host`) is configured, run `php artisan sync:test-connection <remote>` to confirm
+access and that `root` exists before you rely on it for a real sync — see
+[Testing a Connection](#testing-a-connection). A local remote reports success immediately without checking
+`root`, since there's no connection to test.
 
 ### Recipes
 
