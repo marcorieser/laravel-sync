@@ -459,18 +459,24 @@ class Sync
      * macOS/Windows) would hash to different lock files and silently defeat the alias
      * dedup this method exists for.
      *
-     * Duplicate slashes in `root` are also collapsed before hashing, the same way
-     * `Remote::path()` collapses them before building the actual rsync target — without
-     * that, a `root` of `/srv/app` and one of `/srv//app` would hash to different lock
-     * files despite `Remote::path()` resolving both to the exact same rsync path.
+     * `root` is also lexically canonicalized before hashing, via the same
+     * `collapseDotSegments()` used for the backup-dir guards: it collapses duplicate
+     * slashes (so `/srv/app` and `/srv//app` hash the same, matching `Remote::path()`'s
+     * own slash-collapsing before it builds the actual rsync target) and resolves `.`/`..`
+     * segments (so `/srv/app/../shared` and `/srv/shared` hash the same too) — without
+     * that, either kind of alias would hash to a different lock file despite resolving to
+     * the exact same physical target, silently bypassing the guard.
      */
     public function lock(Remote $remote): SyncLock
     {
-        $identity = $remote->isLocal()
-            ? $remote->root
-            : sprintf('%s:%d%s', $remote->host, $remote->port, $remote->root);
+        [$rootSegments] = $this->collapseDotSegments(str_replace('\\', '/', $remote->root));
+        $root = '/'.implode('/', $rootSegments);
 
-        $identity = preg_replace('#/+#', '/', $this->normalizePath($identity)) ?? $identity;
+        $identity = $remote->isLocal()
+            ? $root
+            : sprintf('%s:%d%s', $remote->host, $remote->port, $root);
+
+        $identity = $this->normalizePath($identity);
 
         return new SyncLock(storage_path('framework/cache/sync-locks/'.hash('xxh128', $identity).'.lock'));
     }

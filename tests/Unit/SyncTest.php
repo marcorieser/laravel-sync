@@ -617,3 +617,30 @@ it('gets the same lock for two remotes whose root differs only by a duplicate sl
 
     File::delete($plain->path);
 });
+
+it('gets the same lock for two remotes whose root differs only by a redundant dot segment', function () {
+    // "/root/nested" and "/root/tmp/../nested" resolve to the same physical path on
+    // disk even though Remote::path() never collapses ".." itself — the lock key must
+    // still recognize them as the same target, or this alias would silently bypass the
+    // concurrency guard entirely.
+    $root = base_path('storage/app/lock-test-'.Str::random(8));
+
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        'alias-plain' => ['root' => "{$root}/nested"],
+        'alias-dotted' => ['root' => "{$root}/tmp/../nested"],
+    ])]);
+
+    $sync = resolve(Sync::class);
+
+    $plain = $sync->lock($sync->remote('alias-plain'));
+    $dotted = $sync->lock($sync->remote('alias-dotted'));
+
+    expect($dotted->path)->toBe($plain->path);
+
+    expect($plain->acquire())->toBeTrue();
+    expect($dotted->acquire())->toBeFalse();
+
+    $plain->release();
+
+    File::delete($plain->path);
+});
