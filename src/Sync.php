@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Vitamin2\Sync;
 
+use Closure;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
 use Vitamin2\Sync\Data\Backup;
 use Vitamin2\Sync\Data\BackupFolder;
 use Vitamin2\Sync\Data\Recipe;
 use Vitamin2\Sync\Data\Remote;
 use Vitamin2\Sync\Enums\Operation;
 use Vitamin2\Sync\Exceptions\SyncException;
+use Vitamin2\Sync\Rsync\RestoreCommand;
 use Vitamin2\Sync\Rsync\RsyncOptions;
 
 class Sync
@@ -160,13 +163,9 @@ class Sync
     /**
      * Delete a single backup folder from disk, reporting whether it actually succeeded.
      *
-     * Re-checks `is_link()` immediately before deleting, even though `backups()` already
-     * excludes symlinks when listing: `sync:backups-clean`'s interactive flow runs a
-     * `multiselect()` and a `confirm()` prompt — an arbitrarily long, user-paced window —
-     * between listing and this call, during which the folder could have been replaced by
-     * a symlink (a concurrent process, or a race). Without this, `File::deleteDirectory()`
-     * would follow it and delete the *target*'s contents instead of a real backup folder,
-     * the exact class of bug the listing-time filter exists to prevent.
+     * Re-checks for a symlink swap immediately before deleting (see
+     * `hasBeenReplacedBySymlink()`) — without it, `File::deleteDirectory()` would follow
+     * one and delete the *target*'s contents instead of a real backup folder.
      *
      * `File::deleteDirectory()`'s own return value isn't trustworthy: it reports success
      * once the top-level directory existed, even when an individual file inside failed to
@@ -175,13 +174,43 @@ class Sync
      */
     public function deleteBackup(BackupFolder $folder): bool
     {
-        if (is_link($folder->path)) {
+        if ($this->hasBeenReplacedBySymlink($folder)) {
             return false;
         }
 
         File::deleteDirectory($folder->path);
 
         return ! File::isDirectory($folder->path);
+    }
+
+    /**
+     * Restore a backup folder's contents back onto the project root.
+     *
+     * Runs `rsync` directly, not via `PendingSync`: a restore has no remote, recipe, or
+     * rsync-option shape to build one of those from, just a single local copy.
+     */
+    public function restoreBackup(BackupFolder $folder, bool $dry, ?Closure $onOutput = null): bool
+    {
+        if ($this->hasBeenReplacedBySymlink($folder)) {
+            return false;
+        }
+
+        return Process::forever()->run((new RestoreCommand($folder, $dry))->toArgs(), $onOutput)->successful();
+    }
+
+    /**
+     * Whether a backup folder has been replaced by a symlink since `backups()` listed it,
+     * even though that listing already excludes symlinks. Shared by `deleteBackup()` and
+     * `restoreBackup()`: both have an interactive flow (a `multiselect()`/`select()` plus
+     * a `confirm()` prompt) between listing and acting — an arbitrarily long, user-paced
+     * window during which the folder could have been swapped for a symlink (a concurrent
+     * process, or a race). Without this re-check, `File::deleteDirectory()`/`rsync` would
+     * follow it and act on whatever it points at instead of a real backup folder — the
+     * exact class of bug `backups()`'s own listing-time filter exists to prevent.
+     */
+    private function hasBeenReplacedBySymlink(BackupFolder $folder): bool
+    {
+        return is_link($folder->path);
     }
 
     /**
