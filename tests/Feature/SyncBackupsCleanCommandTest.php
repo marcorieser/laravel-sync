@@ -252,6 +252,16 @@ it('fails with a friendly error when --all is combined with --keep or --older-th
     expect(File::isDirectory("{$this->backupPath}/2026-07-24_134530"))->toBeTrue();
 });
 
+it('reports the --all conflict, not the value error, when --all is combined with a malformed retention value', function () {
+    File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
+
+    $this->artisan('sync:backups-clean', ['--all' => true, '--keep' => 'abc', '--no-interaction' => true])
+        ->expectsOutputToContain('You cannot combine --all with --keep or --older-than')
+        ->assertFailed();
+
+    expect(File::isDirectory("{$this->backupPath}/2026-07-24_134530"))->toBeTrue();
+});
+
 it('reports nothing to delete when no backup matches the given retention criteria', function () {
     $this->travelTo(Date::parse('2026-07-26 10:00:00'));
 
