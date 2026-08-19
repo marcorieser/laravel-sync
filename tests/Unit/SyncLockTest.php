@@ -46,11 +46,8 @@ it('can acquire a lock again once it is released', function () {
 });
 
 it('fails to acquire when the lock file cannot be opened', function () {
-    // A plain file sitting where the lock's parent directory needs to be created makes
-    // `mkdir()` a no-op and `fopen()` fail — no permission tricks needed (unreliable
-    // when tests run as root). The parent directory is created directly, not via
-    // `File::ensureDirectoryExists()`, to sidestep the same shared-directory race
-    // `SyncLock::acquire()` itself guards against under parallel test workers.
+    // A plain file where the lock's parent directory should be makes `fopen()` fail,
+    // without permission tricks (unreliable when tests run as root).
     $blockedParent = storage_path('framework/testing/sync-lock-blocked-'.uniqid('', true));
 
     if (! is_dir(dirname($blockedParent))) {

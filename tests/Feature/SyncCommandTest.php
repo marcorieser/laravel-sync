@@ -325,11 +325,8 @@ it('excludes output-producing options from the prompt when -v is passed, since -
 });
 
 it('refuses to run when another sync is already in progress for the same remote', function () {
-    // A remote name AND root unique to this test, not "staging": the lock file is keyed
-    // by the remote's resolved identity (root, for a local remote) and lives under the
-    // real storage_path(), shared across parallel test workers, so deliberately holding
-    // it open (as this test does) could otherwise collide with another run's own
-    // (instantaneous) sync against a remote pointed at the same root.
+    // Unique root, not "staging": lock files are keyed by root and live under the real
+    // storage_path(), shared across parallel test workers — a shared root would collide.
     config(['sync.remotes' => array_merge(config('sync.remotes'), [
         $name = 'locked-'.Str::random(8) => ['root' => base_path('storage/app/'.$name)],
     ])]);

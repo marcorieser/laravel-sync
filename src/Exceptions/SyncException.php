@@ -150,11 +150,8 @@ class SyncException extends RuntimeException
     }
 
     /**
-     * The per-remote lock couldn't be acquired — either another `sync` run already
-     * holds it, or the lock file itself couldn't be created (e.g. a permissions problem
-     * on the storage directory). `SyncLock::acquire()` can't tell those two apart, so
-     * the message doesn't claim either one outright, and doesn't spell out the lock
-     * directory's path — that's `Sync::lock()`'s detail to own, not duplicated here.
+     * `SyncLock::acquire()` can't distinguish "another run holds it" from "the lock file
+     * couldn't be created", so the message covers both.
      */
     public static function lockUnavailable(string $remote): self
     {

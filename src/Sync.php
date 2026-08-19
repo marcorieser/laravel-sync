@@ -441,31 +441,18 @@ class Sync
     }
 
     /**
-     * Get the concurrency guard for a remote, preventing two `sync` runs against it at
-     * once. Keyed by a hash of the remote's resolved *physical* target (`host:port` plus
-     * `root` for a remote host, just `root` for a local one) rather than its config name
-     * or SSH `user`, so two differently-named config entries that happen to point at the
-     * same physical host/root (an alias, a phased-migration duplicate, or the same host
-     * reachable under two different SSH users) still contend for the same lock — the race
-     * this guards against is two `rsync` processes writing the same remote filesystem
-     * path, which `user` has no bearing on. `xxh128`, not `md5`, since the security arch
-     * preset forbids `md5` as a weak-hash smell, even though this use is a filename, not
-     * anything cryptographic.
+     * Get the concurrency guard for a remote.
      *
-     * The identity is run through `normalizePath()` before hashing, the same case-folding
-     * comparison the class already uses in `guardNotSamePath()` to recognize "same physical
-     * target" — without it, two entries differing only by case (a hostname, which DNS
-     * treats case-insensitively, or a local `root` on a case-insensitive filesystem like
-     * macOS/Windows) would hash to different lock files and silently defeat the alias
-     * dedup this method exists for.
+     * Keyed by the remote's physical target (`host:port` plus `root`, or just `root` when
+     * local) rather than its config name or SSH `user`, so aliased entries pointing at the
+     * same directory contend for the same lock — the race being guarded is two `rsync`
+     * processes writing one path, which `user` has no bearing on.
      *
-     * `root` is also lexically canonicalized before hashing, via the same
-     * `collapseDotSegments()` used for the backup-dir guards: it collapses duplicate
-     * slashes (so `/srv/app` and `/srv//app` hash the same, matching `Remote::path()`'s
-     * own slash-collapsing before it builds the actual rsync target) and resolves `.`/`..`
-     * segments (so `/srv/app/../shared` and `/srv/shared` hash the same too) — without
-     * that, either kind of alias would hash to a different lock file despite resolving to
-     * the exact same physical target, silently bypassing the guard.
+     * The identity is canonicalized (dot segments, duplicate slashes, case) before hashing,
+     * so aliases differing only cosmetically still collide. Case-folding deliberately
+     * over-locks two case-differing paths on a case-sensitive filesystem rather than risk
+     * missing a real race on a case-insensitive one. `xxh128` because the arch preset
+     * rejects `md5` as a weak hash, though this is only a filename.
      */
     public function lock(Remote $remote): SyncLock
     {

@@ -545,11 +545,8 @@ it('validates the given Backup\'s own dir, not just the currently configured bac
 })->throws(SyncException::class);
 
 it('gets the same lock for the same remote', function () {
-    // A remote name AND root unique to this test (not "staging"/"production"): the lock
-    // file is keyed by the remote's resolved identity (root, for a local remote), not its
-    // config name, and lives under the real storage_path(), shared across parallel test
-    // workers or concurrent CI runs — a fixed root reused here could collide with another
-    // run's own (instantaneous) sync against a remote pointed at the same root.
+    // Unique root, not "staging": lock files are keyed by root (not config name) and live
+    // under the real storage_path(), shared across parallel test workers.
     config(['sync.remotes' => array_merge(config('sync.remotes'), [
         $name = 'lock-test-'.Str::random(8) => ['root' => base_path('storage/app/'.$name)],
     ])]);
@@ -569,8 +566,7 @@ it('gets the same lock for the same remote', function () {
 });
 
 it('gets independent locks for different remotes', function () {
-    // Roots (not just names) must differ too — see the comment above, the lock key is
-    // now derived from the remote's resolved identity, not its config name.
+    // Roots must differ, not just names — the lock key ignores the config name.
     config(['sync.remotes' => array_merge(config('sync.remotes'), [
         $nameA = 'lock-test-a-'.Str::random(8) => ['root' => base_path('storage/app/'.$nameA)],
         $nameB = 'lock-test-b-'.Str::random(8) => ['root' => base_path('storage/app/'.$nameB)],
@@ -592,10 +588,8 @@ it('gets independent locks for different remotes', function () {
 });
 
 it('gets the same lock for two remotes whose root differs only by a duplicate slash', function () {
-    // Remote::path() collapses duplicate slashes before building the actual rsync
-    // target, so "/root" and "/root//nested" vs "/root/nested" resolve to the same
-    // physical path on disk — the lock key must collapse them the same way, or two
-    // config aliases like this would silently bypass the concurrency guard entirely.
+    // Remote::path() collapses duplicate slashes, so these two roots reach the same rsync
+    // target — the lock key must collapse them too, or the aliases bypass the guard.
     $root = base_path('storage/app/lock-test-'.Str::random(8));
 
     config(['sync.remotes' => array_merge(config('sync.remotes'), [
@@ -619,10 +613,8 @@ it('gets the same lock for two remotes whose root differs only by a duplicate sl
 });
 
 it('gets the same lock for two remotes whose root differs only by a redundant dot segment', function () {
-    // "/root/nested" and "/root/tmp/../nested" resolve to the same physical path on
-    // disk even though Remote::path() never collapses ".." itself — the lock key must
-    // still recognize them as the same target, or this alias would silently bypass the
-    // concurrency guard entirely.
+    // These two roots resolve to the same directory on disk even though Remote::path()
+    // never collapses ".." itself — the lock key must still see them as one target.
     $root = base_path('storage/app/lock-test-'.Str::random(8));
 
     config(['sync.remotes' => array_merge(config('sync.remotes'), [

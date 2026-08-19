@@ -6,12 +6,11 @@ namespace Vitamin2\Sync\Concurrency;
 
 /**
  * A non-blocking, per-remote exclusive lock file, guarding against two `sync` runs
- * (e.g. a cron job and a human, or two humans) racing on the same remote at once.
+ * racing on the same remote.
  *
  * Backed by `flock()`, not `Cache::lock()`: the package can't assume the host app
- * configures an atomic cache driver (the `array` driver, for one, isn't shared across
- * processes), while a lock file works regardless of cache config and is released
- * automatically by the OS if the holding process dies without calling `release()`.
+ * configures a cache driver that's atomic across processes (`array` isn't), and the OS
+ * releases a file lock automatically if the holding process dies.
  */
 final class SyncLock
 {
@@ -30,22 +29,16 @@ final class SyncLock
      */
     public function acquire(): bool
     {
-        // If this instance already holds the lock, calling `acquire()` again is a no-op
-        // that succeeds immediately — not a release-then-reacquire. Actually dropping and
-        // retaking the OS-level lock here would open a window where a racing process could
-        // grab it in between, making a caller that believes it already holds the lock see
-        // `acquire()` unexpectedly return false.
+        // Already held: succeed without dropping and retaking the OS lock, which would
+        // open a window for a racing process to grab it in between.
         if (is_resource($this->handle)) {
             return true;
         }
 
         $directory = dirname($this->path);
 
-        // Suppressed, and not `File::ensureDirectoryExists()`: two `sync` processes
-        // racing to create the same not-yet-existing lock directory for the first time
-        // both pass its exists-check before either finishes `mkdir()`, so the loser's
-        // unsuppressed `mkdir()` would throw instead of simply finding the directory
-        // already there.
+        // Suppressed, not `File::ensureDirectoryExists()`: two processes racing to create
+        // this directory both pass its exists-check, and the loser's `mkdir()` throws.
         if (! is_dir($directory)) {
             @mkdir($directory, recursive: true);
         }
