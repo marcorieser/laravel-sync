@@ -1,21 +1,25 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "marcorieser/laravel-sync",
+    "name": "vitamin2/laravel-sync",
     "description": "A git-like artisan command to easily sync files and folders between environments",
     "keywords": [
         "laravel",
-        "marcorieser",
+        "vitamin2",
         "laravel-sync"
     ],
-    "homepage": "https://github.com/marcorieser/laravel-sync",
+    "homepage": "https://vitamin2.ch",
     "license": "MIT",
     "authors": [
         {
-            "name": "Marco Rieser",
-            "email": "marco@rieser.dev",
-            "role": "Developer"
+            "name": "VITAMIN 2",
+            "email": "dev@vitamin2.ch",
+            "homepage": "https://vitamin2.ch"
         }
     ],
+    "support": {
+        "issues": "https://github.com/vitamin2ag/laravel-sync/issues",
+        "source": "https://github.com/vitamin2ag/laravel-sync"
+    },
     "require": {
         "php": "^8.3",
         "illuminate/support": "^12.0||^13.0",
