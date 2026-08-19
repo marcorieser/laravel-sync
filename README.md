@@ -153,10 +153,10 @@ anything in it that isn't a timestamped backup folder) untouched. Run it without
 from an interactive list (with size and age), or pass `--all` to select every one. Add `--dry` to preview
 what would be deleted without deleting anything, and `--force` to skip the confirmation prompt.
 
-Running it with `--no-interaction` and without `--all` fails fast with a friendly error instead of deleting
-anything — there's no picker to fall back to, and deleting every backup by default would be surprising. The
-confirmation prompt only appears when running interactively, so `--no-interaction --all` (e.g. in a cron job)
-deletes immediately without needing `--force`.
+Running it with `--no-interaction` and without `--all` or a retention option fails fast with a friendly error
+instead of deleting anything — there's no picker to fall back to, and deleting every backup by default would
+be surprising. The confirmation prompt only appears when running interactively, so `--no-interaction --all`
+(e.g. in a cron job) deletes immediately without needing `--force`.
 
 Pass `--keep=N` and/or `--older-than=N` (days) to select backups by retention criteria instead of picking or
 `--all` — the only selection method that works non-interactively without `--all`, making it the one to use in
