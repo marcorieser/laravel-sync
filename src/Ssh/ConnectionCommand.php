@@ -48,8 +48,18 @@ final readonly class ConnectionCommand implements Stringable
             ...self::SSH_OPTIONS,
             '-p', (string) $this->remote->port,
             "{$this->remote->user}@{$this->remote->host}",
-            "test -d {$this->escapeRemotePath($this->remote->root)}",
+            "test -d {$this->escapeRemotePath($this->root())}",
         ];
+    }
+
+    /**
+     * `Remote::fromArray()` normalizes root by `rtrim`ming trailing `/`, which turns a
+     * configured root of `/` into `''` — fall back to `/` here so the remote-filesystem
+     * root still resolves to a real, checkable path.
+     */
+    private function root(): string
+    {
+        return $this->remote->root === '' ? '/' : $this->remote->root;
     }
 
     /**

@@ -43,3 +43,13 @@ it('escapes a single quote in the root for the remote shell', function () {
 
     expect((new ConnectionCommand($remote))->toArgs())->toContain("test -d '/srv/app'\\''s data'");
 });
+
+it('checks the filesystem root when the configured root normalizes to an empty string', function () {
+    $remote = Remote::fromArray('production', [
+        'user' => 'forge',
+        'host' => '104.26.3.113',
+        'root' => '/',
+    ]);
+
+    expect((new ConnectionCommand($remote))->toArgs())->toContain("test -d '/'");
+});
