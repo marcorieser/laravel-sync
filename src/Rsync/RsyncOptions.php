@@ -186,11 +186,20 @@ final readonly class RsyncOptions implements Stringable
      * project root as its working directory (not guaranteed for a plain sync, unlike the
      * backup pass in `BackupCommand`).
      *
+     * Normalizes a Windows-style `\` separator to `/` first, matching
+     * `Sync::guardExcludesFromFilesExist()`'s own normalization — without it, a
+     * backslash-separated configured path would build a literal path containing
+     * backslashes on POSIX (a real, if oddly-named, single path segment there, not a
+     * directory separator), which wouldn't match the file the guard just validated.
+     *
      * @param  array<int, string>  $paths
      */
     public function withExcludeFrom(array $paths): self
     {
-        return $this->withAppendedFlags($paths, fn (string $path) => '--exclude-from='.base_path($path));
+        return $this->withAppendedFlags(
+            $paths,
+            fn (string $path) => '--exclude-from='.base_path(str_replace('\\', '/', $path)),
+        );
     }
 
     /**

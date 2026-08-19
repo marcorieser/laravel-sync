@@ -472,10 +472,13 @@ class Sync
      * indication that it was never read as an absolute path to begin with.
      *
      * Also reuses `collapseDotSegments()` (also used by `guardBackupDirSafe()`) to
-     * lexically refuse a path that steps above the project root via a ".." segment —
-     * `base_path()` is plain string concatenation, so an unchecked ".." would otherwise
-     * resolve on disk to a real path outside the project, both for this guard's own
-     * `File::isFile()` check and for the `--exclude-from=` flag `rsync` itself reads.
+     * lexically refuse a path that steps above the project root via a ".." segment, and
+     * checks the *collapsed* path on disk — not the raw configured `$path` — for both the
+     * existence check below and the real-path containment check in
+     * `guardExcludesFromFileNotEscapingRootOnDisk()`: a mismatch between what was
+     * validated and what's actually read would let a Windows-style separator or a
+     * redundant ".." segment slip past one check while still reaching the filesystem (or
+     * `rsync` itself) through the other, unnormalized string.
      *
      * `File::isFile()`, not `File::exists()`: the latter is also true for a directory (or
      * for a blank entry, since `base_path('')` resolves to the always-existing project
@@ -494,16 +497,43 @@ class Sync
                     throw SyncException::excludesFromFileUnsafe($recipe->name, $path);
                 }
 
-                [, $escaped] = $this->collapseDotSegments($normalized);
+                [$segments, $escaped] = $this->collapseDotSegments($normalized);
 
                 if ($escaped) {
                     throw SyncException::excludesFromFileUnsafe($recipe->name, $path);
                 }
 
-                if (! File::isFile(base_path($path))) {
+                $collapsed = implode('/', $segments);
+
+                if (! File::isFile(base_path($collapsed))) {
                     throw SyncException::excludesFromFileMissing($recipe->name, $path);
                 }
+
+                $this->guardExcludesFromFileNotEscapingRootOnDisk($recipe->name, $path, $collapsed);
             }
+        }
+    }
+
+    /**
+     * Resolve the (already lexically-safe, already confirmed to exist) excludes-from
+     * file's real path and refuse it unless it's actually contained within the real
+     * project root — the lexical dot-segment check in `guardExcludesFromFilesExist()`
+     * alone can't catch a project-internal *symlink* whose target lives outside the
+     * project (e.g. `storage/app/link -> /etc/passwd`), which still passes both that
+     * check and `File::isFile()`. Mirrors `guardBackupDirNotEscapingRootOnDisk()`'s same
+     * real-path containment check for `backup_dir`.
+     *
+     * Unlike that guard, no "walk up to the nearest existing ancestor" is needed here:
+     * `guardExcludesFromFilesExist()` already confirmed the file itself exists before
+     * calling this, so `realpath()` on the file directly is always meaningful.
+     */
+    private function guardExcludesFromFileNotEscapingRootOnDisk(string $recipeName, string $path, string $collapsed): void
+    {
+        $normalizedReal = $this->normalizeRealpath(realpath(base_path($collapsed)));
+        $normalizedRoot = $this->normalizeRealpath(realpath(base_path()));
+
+        if ($normalizedReal === null || $normalizedRoot === null || ! $this->isPathWithin($normalizedReal, $normalizedRoot)) {
+            throw SyncException::excludesFromFileUnsafe($recipeName, $path);
         }
     }
 

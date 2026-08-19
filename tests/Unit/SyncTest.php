@@ -193,6 +193,54 @@ it('allows a recipe whose excludes-from file exists', function () {
     }
 });
 
+it('finds a recipe\'s excludes-from file even when configured with Windows-style backslash separators', function () {
+    // The guard's existence check must use the same collapsed (`/`-separated) path it
+    // already validated for traversal safety — not the raw configured string, which a
+    // POSIX filesystem would otherwise treat as one oddly-named segment containing
+    // literal backslashes rather than a nested path.
+    config(['sync.excludes_from' => ['assets' => ['storage\\app\\.rsync-excludes-backslash']]]);
+    File::ensureDirectoryExists(base_path('storage/app'));
+    File::put(base_path('storage/app/.rsync-excludes-backslash'), '*.log');
+
+    try {
+        $sync = resolve(Sync::class);
+        $pending = $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+
+        expect($pending)->toBeInstanceOf(PendingSync::class);
+    } finally {
+        File::delete(base_path('storage/app/.rsync-excludes-backslash'));
+    }
+});
+
+it('refuses a recipe\'s excludes-from file that is a symlink pointing outside the project', function () {
+    // A lexical dot-segment check alone can't catch this: the configured path itself
+    // has no ".." and passes File::isFile() (which follows symlinks), so only a
+    // real-path containment check — like guardBackupDirSafe()'s own — closes it.
+    $target = sys_get_temp_dir().'/sync-excludes-outside-'.Str::random(8);
+    File::put($target, '*.log');
+
+    $link = base_path('storage/app/.rsync-excludes-symlink');
+
+    if (! @symlink($target, $link)) {
+        File::delete($target);
+        $this->markTestSkipped('This environment does not support creating symlinks.');
+    }
+
+    config(['sync.excludes_from' => ['assets' => ['storage/app/.rsync-excludes-symlink']]]);
+
+    try {
+        $sync = resolve(Sync::class);
+
+        $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+    } finally {
+        @unlink($link);
+        File::delete($target);
+    }
+})->throws(
+    SyncException::class,
+    'The excludes_from file "storage/app/.rsync-excludes-symlink" configured for recipe "assets" resolves outside your project.',
+);
+
 it('refuses to prepare a sync when a recipe\'s excludes-from file does not exist', function () {
     config(['sync.excludes_from' => ['assets' => ['storage/app/.rsync-excludes-missing']]]);
 
