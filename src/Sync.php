@@ -467,7 +467,7 @@ class Sync
      * separator and rebases them under the project root (see `join_paths()`). ".." is
      * refused rather than collapsed, unlike `guardBackupDirSafe()`: `rsync` gets the
      * configured path verbatim, so a ".." after a symlinked segment reads a file this guard
-     * never validated. "." and repeated separators can't traverse, so they're left alone.
+     * never validated.
      *
      * `File::isFile()`, not `File::exists()`: the latter also passes for a directory, and
      * for a blank entry, since `base_path('')` is the project root.
