@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vitamin2\Sync\Rsync;
 
+use Closure;
 use Illuminate\Support\Collection;
 use Stringable;
 
@@ -143,13 +144,17 @@ final readonly class RsyncOptions implements Stringable
      * Whether any of the resolved flags produce visible output while syncing.
      *
      * Flags outside `AVAILABLE` are assumed to produce output rather than silently suppressing
-     * streaming; `--exclude=PATTERN` is exempted because its user-defined value keeps it out of
-     * `AVAILABLE` even though it's known to be silent.
+     * streaming; `--exclude=PATTERN` and `--exclude-from=FILE` are exempted because their
+     * user-defined values keep them out of `AVAILABLE` even though they're known to be silent.
      */
     public function producesOutput(): bool
     {
         foreach ($this->flags as $flag) {
             if (str_starts_with($flag, '--exclude=')) {
+                continue;
+            }
+
+            if (str_starts_with($flag, '--exclude-from=')) {
                 continue;
             }
 
@@ -170,13 +175,43 @@ final readonly class RsyncOptions implements Stringable
      */
     public function withExcludes(array $excludes): self
     {
-        if ($excludes === []) {
+        return $this->withAppendedFlags($excludes, fn (string $pattern) => "--exclude={$pattern}");
+    }
+
+    /**
+     * Return a copy of these options with a `--exclude-from=FILE` flag appended for each
+     * given file, resolved to an absolute path — `rsync` always reads an exclude-from
+     * file from the *local* (control) machine, regardless of push/pull direction, so a
+     * relative path only resolves correctly as long as the process also runs with the
+     * project root as its working directory (not guaranteed for a plain sync, unlike the
+     * backup pass in `BackupCommand`).
+     *
+     * @param  array<int, string>  $paths
+     */
+    public function withExcludeFrom(array $paths): self
+    {
+        return $this->withAppendedFlags($paths, fn (string $path) => '--exclude-from='.base_path($path));
+    }
+
+    /**
+     * Return a copy of these options with one flag appended per value, formatted by
+     * `$format` — the shared "append one flag per value" shape behind `withExcludes()`
+     * and `withExcludeFrom()`. Returns `$this` unchanged (not a new, merely
+     * value-identical instance) when `$values` is empty, so a caller with nothing to add
+     * can cheaply detect a no-op via identity.
+     *
+     * @param  array<int, string>  $values
+     * @param  Closure(string): string  $format
+     */
+    private function withAppendedFlags(array $values, Closure $format): self
+    {
+        if ($values === []) {
             return $this;
         }
 
         return new self([
             ...$this->flags,
-            ...array_map(fn (string $pattern) => "--exclude={$pattern}", $excludes),
+            ...array_map($format, $values),
         ]);
     }
 

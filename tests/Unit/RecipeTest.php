@@ -9,11 +9,18 @@ it('hydrates a name and its paths', function () {
 
     expect($recipe->name)->toBe('assets')
         ->and($recipe->paths)->toBe(['storage/app/assets/', 'storage/app/img/'])
-        ->and($recipe->excludes)->toBe([]);
+        ->and($recipe->excludes)->toBe([])
+        ->and($recipe->excludesFrom)->toBe([]);
 });
 
 it('hydrates the given excludes', function () {
     $recipe = Recipe::fromArray('assets', ['storage/app/assets/'], ['*.log', 'node_modules/']);
 
     expect($recipe->excludes)->toBe(['*.log', 'node_modules/']);
+});
+
+it('hydrates the given excludes-from files', function () {
+    $recipe = Recipe::fromArray('assets', ['storage/app/assets/'], [], ['.rsync-excludes']);
+
+    expect($recipe->excludesFrom)->toBe(['.rsync-excludes']);
 });

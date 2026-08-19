@@ -57,12 +57,15 @@ class Sync
             // containing a "." would be misread by `config()`'s dot-notation.
             /** @var array<string, array<int, string>> $excludes */
             $excludes = config('sync.excludes', []);
+            /** @var array<string, array<int, string>> $excludesFrom */
+            $excludesFrom = config('sync.excludes_from', []);
 
             return collect($recipes)->map(
                 fn (array $paths, string $name) => Recipe::fromArray(
                     $name,
                     $paths,
                     self::filterStrings((array) ($excludes[$name] ?? [])),
+                    self::filterStrings((array) ($excludesFrom[$name] ?? [])),
                 ),
             );
         });
@@ -414,6 +417,7 @@ class Sync
     {
         $this->guardReadOnly($operation, $remote);
         $this->guardNotSamePath($remote, $recipes);
+        $this->guardExcludesFromFilesExist($recipes);
 
         if ($backup instanceof Backup && $operation === Operation::Pull) {
             $this->guardBackup($backup, $recipes);
@@ -449,6 +453,56 @@ class Sync
 
             if ($remotePath === $localPath) {
                 throw SyncException::samePath($path);
+            }
+        }
+    }
+
+    /**
+     * Guard that every `excludes_from` file configured for the given recipes actually
+     * exists as a file, and doesn't resolve outside the project root — checked only for
+     * the recipes being synced, not every configured recipe, so a broken `excludes_from`
+     * path on a recipe that isn't part of this run doesn't block it. `rsync` itself would
+     * fail with a much less friendly error partway through the transfer otherwise.
+     *
+     * Refuses an absolute path (a leading "/" or a Windows drive letter like "C:") the
+     * same way `guardBackupDirSafe()` does for `backup_dir`: `base_path()` doesn't error
+     * on one, it silently `ltrim()`s the leading separator (see `join_paths()`) and
+     * rebases it under the project root instead — so an absolute-looking configured path
+     * would otherwise resolve to a different, most likely nonexistent, file without any
+     * indication that it was never read as an absolute path to begin with.
+     *
+     * Also reuses `collapseDotSegments()` (also used by `guardBackupDirSafe()`) to
+     * lexically refuse a path that steps above the project root via a ".." segment —
+     * `base_path()` is plain string concatenation, so an unchecked ".." would otherwise
+     * resolve on disk to a real path outside the project, both for this guard's own
+     * `File::isFile()` check and for the `--exclude-from=` flag `rsync` itself reads.
+     *
+     * `File::isFile()`, not `File::exists()`: the latter is also true for a directory (or
+     * for a blank entry, since `base_path('')` resolves to the always-existing project
+     * root), which would silently pass this guard and only surface as rsync's own raw
+     * error once `--exclude-from=` actually points `rsync` at something that isn't a file.
+     *
+     * @param  Collection<int, Recipe>  $recipes
+     */
+    public function guardExcludesFromFilesExist(Collection $recipes): void
+    {
+        foreach ($recipes as $recipe) {
+            foreach ($recipe->excludesFrom as $path) {
+                $normalized = str_replace('\\', '/', $path);
+
+                if ($normalized !== '' && ($normalized[0] === '/' || preg_match('#^[A-Za-z]:#', $normalized) === 1)) {
+                    throw SyncException::excludesFromFileUnsafe($recipe->name, $path);
+                }
+
+                [, $escaped] = $this->collapseDotSegments($normalized);
+
+                if ($escaped) {
+                    throw SyncException::excludesFromFileUnsafe($recipe->name, $path);
+                }
+
+                if (! File::isFile(base_path($path))) {
+                    throw SyncException::excludesFromFileMissing($recipe->name, $path);
+                }
             }
         }
     }

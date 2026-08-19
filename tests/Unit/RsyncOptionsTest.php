@@ -125,3 +125,25 @@ it('returns the same instance when there are no excludes', function () {
 
     expect($options->withExcludes([]))->toBe($options);
 });
+
+it('appends an --exclude-from flag per file, resolved to an absolute path', function () {
+    $options = (new RsyncOptions(['--archive']))->withExcludeFrom(['.rsync-excludes', 'storage/other.txt']);
+
+    expect($options->flags)->toBe([
+        '--archive',
+        '--exclude-from='.base_path('.rsync-excludes'),
+        '--exclude-from='.base_path('storage/other.txt'),
+    ]);
+});
+
+it('returns the same instance when there are no excludes-from files', function () {
+    $options = new RsyncOptions(['--archive']);
+
+    expect($options->withExcludeFrom([]))->toBe($options);
+});
+
+it('does not treat an --exclude-from flag as producing output', function () {
+    $options = (new RsyncOptions(['--archive']))->withExcludeFrom(['.rsync-excludes']);
+
+    expect($options->producesOutput())->toBeFalse();
+});

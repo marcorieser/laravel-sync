@@ -94,6 +94,31 @@ it('resolves excludes for a recipe name containing a dot, without config() misre
     expect($recipe->excludes)->toBe(['*.tmp']);
 });
 
+it('hydrates a recipe\'s excludes-from files from the separate excludes_from config key, keyed by recipe name', function () {
+    config(['sync.excludes_from' => ['assets' => ['.rsync-excludes']]]);
+
+    $recipe = resolve(Sync::class)->recipes()->get('assets');
+
+    expect($recipe->excludesFrom)->toBe(['.rsync-excludes']);
+});
+
+it('defaults a recipe\'s excludes-from files to an empty array when none are configured for it', function () {
+    $recipe = resolve(Sync::class)->recipes()->get('assets');
+
+    expect($recipe->excludesFrom)->toBe([]);
+});
+
+it('resolves excludes-from files for a recipe name containing a dot, without config() misreading it as a nested path', function () {
+    config([
+        'sync.recipes' => ['assets.images' => ['storage/app/img/']],
+        'sync.excludes_from' => ['assets.images' => ['.rsync-excludes']],
+    ]);
+
+    $recipe = resolve(Sync::class)->recipes()->get('assets.images');
+
+    expect($recipe->excludesFrom)->toBe(['.rsync-excludes']);
+});
+
 it('resolves a single remote by name', function () {
     expect(resolve(Sync::class)->remote('staging'))->toBeInstanceOf(Remote::class);
 });
@@ -153,6 +178,67 @@ it('refuses to sync a path with itself even when the remote root only differs by
 
     $sync->prepare(Operation::Push, $sync->remote('here'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 })->throws(SyncException::class);
+
+it('allows a recipe whose excludes-from file exists', function () {
+    config(['sync.excludes_from' => ['assets' => ['storage/app/.rsync-excludes-exists']]]);
+    File::put(base_path('storage/app/.rsync-excludes-exists'), '*.log');
+
+    try {
+        $sync = resolve(Sync::class);
+        $pending = $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+
+        expect($pending)->toBeInstanceOf(PendingSync::class);
+    } finally {
+        File::delete(base_path('storage/app/.rsync-excludes-exists'));
+    }
+});
+
+it('refuses to prepare a sync when a recipe\'s excludes-from file does not exist', function () {
+    config(['sync.excludes_from' => ['assets' => ['storage/app/.rsync-excludes-missing']]]);
+
+    $sync = resolve(Sync::class);
+
+    $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+})->throws(
+    SyncException::class,
+    'The excludes_from file "storage/app/.rsync-excludes-missing" configured for recipe "assets" does not exist.',
+);
+
+it('refuses a recipe\'s excludes-from file whose path steps outside the project root', function () {
+    config(['sync.excludes_from' => ['assets' => ['../../etc/.rsync-excludes']]]);
+
+    $sync = resolve(Sync::class);
+
+    $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+})->throws(
+    SyncException::class,
+    'The excludes_from file "../../etc/.rsync-excludes" configured for recipe "assets" resolves outside your project.',
+);
+
+it('refuses a recipe\'s excludes-from file whose path is absolute', function () {
+    config(['sync.excludes_from' => ['assets' => ['/etc/.rsync-excludes']]]);
+
+    $sync = resolve(Sync::class);
+
+    $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+})->throws(
+    SyncException::class,
+    'The excludes_from file "/etc/.rsync-excludes" configured for recipe "assets" resolves outside your project.',
+);
+
+it('only checks excludes-from files for the recipes being synced, not every configured recipe', function () {
+    config([
+        'sync.recipes' => [
+            'assets' => ['storage/app/assets/'],
+            'env' => ['.env'],
+        ],
+        'sync.excludes_from' => ['env' => ['storage/app/.rsync-excludes-missing']],
+    ]);
+
+    $sync = resolve(Sync::class);
+
+    $sync->guardExcludesFromFilesExist(collect([$sync->recipe('assets')]));
+})->throwsNoExceptions();
 
 it('refuses to back up when the backup directory is the recipe path itself', function () {
     $sync = resolve(Sync::class);
