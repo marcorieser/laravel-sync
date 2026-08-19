@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Vitamin2\Sync\Rsync;
 
-use Closure;
 use Illuminate\Support\Collection;
 use Stringable;
 
@@ -175,7 +174,7 @@ final readonly class RsyncOptions implements Stringable
      */
     public function withExcludes(array $excludes): self
     {
-        return $this->withAppendedFlags($excludes, fn (string $pattern) => "--exclude={$pattern}");
+        return $this->withFlags(array_map(fn (string $pattern) => "--exclude={$pattern}", $excludes));
     }
 
     /**
@@ -184,39 +183,26 @@ final readonly class RsyncOptions implements Stringable
      * machine whatever the direction, and a plain sync isn't guaranteed to run from the
      * project root (unlike the backup pass in `BackupCommand`).
      *
-     * The `\`-to-`/` normalization mirrors `Sync::guardExcludesFromFilesExist()` so both
-     * address the same file on POSIX; don't collapse ".." to match it either — that guard
-     * refuses ".." outright, and collapsing here would diverge from the kernel's
-     * segment-by-segment resolution through a symlink.
+     * Paths arrive `/`-normalized from `Recipe::fromArray()`; don't collapse ".." here to
+     * match the guard either — it refuses ".." outright, and collapsing would diverge from
+     * the kernel's segment-by-segment resolution through a symlink.
      *
      * @param  array<int, string>  $paths
      */
     public function withExcludeFrom(array $paths): self
     {
-        return $this->withAppendedFlags(
-            $paths,
-            fn (string $path) => '--exclude-from='.base_path(str_replace('\\', '/', $path)),
-        );
+        return $this->withFlags(array_map(fn (string $path) => '--exclude-from='.base_path($path), $paths));
     }
 
     /**
-     * Return a copy of these options with one flag appended per value, formatted by
-     * `$format`. Returns `$this` itself when `$values` is empty, not a value-identical
-     * copy — callers detect the no-op by identity.
+     * Return a copy of these options with `$flags` appended. Returns `$this` itself when
+     * `$flags` is empty, not a value-identical copy — callers detect the no-op by identity.
      *
-     * @param  array<int, string>  $values
-     * @param  Closure(string): string  $format
+     * @param  array<int, string>  $flags
      */
-    private function withAppendedFlags(array $values, Closure $format): self
+    private function withFlags(array $flags): self
     {
-        if ($values === []) {
-            return $this;
-        }
-
-        return new self([
-            ...$this->flags,
-            ...array_map($format, $values),
-        ]);
+        return $flags === [] ? $this : new self([...$this->flags, ...$flags]);
     }
 
     public function __toString(): string

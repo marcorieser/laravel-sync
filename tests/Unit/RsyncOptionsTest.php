@@ -142,15 +142,6 @@ it('returns the same instance when there are no excludes-from files', function (
     expect($options->withExcludeFrom([]))->toBe($options);
 });
 
-it('normalizes a Windows-style backslash separator before resolving to an absolute path', function () {
-    $options = (new RsyncOptions(['--archive']))->withExcludeFrom(['storage\\app\\.rsync-excludes']);
-
-    expect($options->flags)->toBe([
-        '--archive',
-        '--exclude-from='.base_path('storage/app/.rsync-excludes'),
-    ]);
-});
-
 it('does not treat an --exclude-from flag as producing output', function () {
     $options = (new RsyncOptions(['--archive']))->withExcludeFrom(['.rsync-excludes']);
 

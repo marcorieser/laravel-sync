@@ -24,3 +24,11 @@ it('hydrates the given excludes-from files', function () {
 
     expect($recipe->excludesFrom)->toBe(['.rsync-excludes']);
 });
+
+it('normalizes Windows-style backslash separators in excludes-from files', function () {
+    // The guard and the `--exclude-from=` flag both read this value, so it is normalized once
+    // here rather than by each of them.
+    $recipe = Recipe::fromArray('assets', ['storage/app/assets/'], [], ['storage\\app\\.rsync-excludes']);
+
+    expect($recipe->excludesFrom)->toBe(['storage/app/.rsync-excludes']);
+});

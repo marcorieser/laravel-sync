@@ -204,7 +204,7 @@ class Sync
     {
         $normalized = str_replace('\\', '/', trim($dir));
 
-        if ($normalized !== '' && ($normalized[0] === '/' || preg_match('#^[A-Za-z]:#', $normalized) === 1)) {
+        if ($this->isAbsolutePath($normalized)) {
             throw SyncException::backupDirUnsafe($dir);
         }
 
@@ -294,6 +294,15 @@ class Sync
         if ($ancestor === $target && $normalizedReal === $normalizedRoot) {
             throw SyncException::backupDirUnsafe($dir);
         }
+    }
+
+    /**
+     * Whether an already-`/`-normalized path is absolute — a leading separator, or a Windows
+     * drive letter, which `base_path()` would otherwise silently rebase under the project.
+     */
+    private function isAbsolutePath(string $normalized): bool
+    {
+        return $normalized !== '' && ($normalized[0] === '/' || preg_match('#^[A-Za-z]:#', $normalized) === 1);
     }
 
     /**
@@ -479,17 +488,15 @@ class Sync
     {
         foreach ($recipes as $recipe) {
             foreach ($recipe->excludesFrom as $path) {
-                $normalized = str_replace('\\', '/', $path);
-
-                if ($normalized !== '' && ($normalized[0] === '/' || preg_match('#^[A-Za-z]:#', $normalized) === 1)) {
+                if ($this->isAbsolutePath($path)) {
                     throw SyncException::excludesFromFileAbsolute($recipe->name, $path);
                 }
 
-                if (in_array('..', explode('/', $normalized), true)) {
+                if (in_array('..', explode('/', $path), true)) {
                     throw SyncException::excludesFromFileTraversal($recipe->name, $path);
                 }
 
-                if (! File::isFile(base_path($normalized))) {
+                if (! File::isFile(base_path($path))) {
                     throw SyncException::excludesFromFileMissing($recipe->name, $path);
                 }
             }
