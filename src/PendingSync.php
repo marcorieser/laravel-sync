@@ -77,22 +77,13 @@ final readonly class PendingSync
     }
 
     /**
-     * Map each resolved, de-duplicated recipe path to the union of exclude patterns
-     * from every selected recipe that includes it — a path can appear in more than one
-     * recipe, and each contributes its own excludes to that path's merged rsync
-     * command. Not applied to a backup pass (see `backups()`): a backed-up pull's own
-     * `BackupCommand` is a fixed, independent full copy, not affected by the sync's
-     * rsync options either.
+     * De-duplicated recipe path → union of excludes from every recipe containing it.
+     * Not applied to backups() — a backup's BackupCommand is a fixed full copy.
      *
-     * Deliberately not keyed by path in a native PHP array (or a `Collection` built
-     * from one, which is backed by the same array): a purely-numeric path (e.g.
-     * `"2024"`, or `"123"` in `releases/123/`) would be silently coerced to an int
-     * array key by PHP itself — no cast can prevent this, since the coercion happens
-     * at the array-key-assignment level — and then crash the `string $path`-typed
-     * closures above under `declare(strict_types=1)`. Each path is instead tracked as
-     * a value inside an `array{path: string, excludes: array<int, string>}`, found by an
-     * explicit, strict value comparison (`array_search(..., true)`) rather than by
-     * indexing into an array with it.
+     * Not keyed by path in a native array/Collection: a purely-numeric path (e.g.
+     * `"123"` in `releases/123/`) gets silently coerced to an int array key by PHP,
+     * crashing the `string $path`-typed closures above under strict_types. Each path
+     * is tracked as a value instead, found via strict `array_search(..., true)`.
      *
      * @return Collection<int, array{path: string, excludes: array<int, string>}>
      */
