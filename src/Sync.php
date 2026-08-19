@@ -458,16 +458,17 @@ class Sync
     }
 
     /**
-     * Guard that every `excludes_from` file configured for the recipes being synced exists
-     * and stays inside the project — `rsync` would otherwise fail mid-transfer with a much
-     * rawer error. Recipes outside this run aren't checked, so a broken path elsewhere in
-     * the config doesn't block it.
+     * Guard that every `excludes_from` file configured for the recipes being synced exists —
+     * `rsync` would otherwise fail mid-transfer with a much rawer error. Recipes outside this
+     * run aren't checked, so a broken path elsewhere in the config doesn't block it.
      *
      * Absolute paths are refused because `base_path()` silently `ltrim()`s the leading
      * separator and rebases them under the project root (see `join_paths()`). ".." is
      * refused rather than collapsed, unlike `guardBackupDirSafe()`: `rsync` gets the
      * configured path verbatim, so a ".." after a symlinked segment reads a file this guard
-     * never validated.
+     * never validated. A symlink out of the project is deliberately allowed — a shared
+     * `storage` is standard on Envoyer-style deploys, and `-O` already passes arbitrary
+     * rsync flags, so containment here would break real layouts while guarding nothing.
      *
      * `File::isFile()`, not `File::exists()`: the latter also passes for a directory, and
      * for a blank entry, since `base_path('')` is the project root.
@@ -481,7 +482,7 @@ class Sync
                 $normalized = str_replace('\\', '/', $path);
 
                 if ($normalized !== '' && ($normalized[0] === '/' || preg_match('#^[A-Za-z]:#', $normalized) === 1)) {
-                    throw SyncException::excludesFromFileUnsafe($recipe->name, $path);
+                    throw SyncException::excludesFromFileAbsolute($recipe->name, $path);
                 }
 
                 if (in_array('..', explode('/', $normalized), true)) {
@@ -491,28 +492,7 @@ class Sync
                 if (! File::isFile(base_path($normalized))) {
                     throw SyncException::excludesFromFileMissing($recipe->name, $path);
                 }
-
-                $this->guardExcludesFromFileNotEscapingRootOnDisk($recipe->name, $path, $normalized);
             }
-        }
-    }
-
-    /**
-     * Refuse the excludes-from file unless its real path is inside the real project root:
-     * the lexical checks can't catch an in-project symlink whose target lives outside (e.g.
-     * `storage/app/link -> /etc/passwd`), which passes `File::isFile()` too.
-     *
-     * No walk up to the nearest existing ancestor as in
-     * `guardBackupDirNotEscapingRootOnDisk()` — the caller has already confirmed the file
-     * itself exists, so `realpath()` on it always resolves.
-     */
-    private function guardExcludesFromFileNotEscapingRootOnDisk(string $recipeName, string $path, string $normalized): void
-    {
-        $normalizedReal = $this->normalizeRealpath(realpath(base_path($normalized)));
-        $normalizedRoot = $this->normalizeRealpath(realpath(base_path()));
-
-        if ($normalizedReal === null || $normalizedRoot === null || ! $this->isPathWithin($normalizedReal, $normalizedRoot)) {
-            throw SyncException::excludesFromFileUnsafe($recipeName, $path);
         }
     }
 

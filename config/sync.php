@@ -58,8 +58,8 @@ return [
     | Optional, keyed by recipe name. An array of file paths (relative to your project's
     | root), each containing rsync exclude patterns (one per line), applied via rsync's
     | own --exclude-from when that recipe is synced — useful for a long exclude list
-    | you'd rather keep in its own file than inline in this config. Each path must stay
-    | inside your project: absolute paths and ".." segments are refused.
+    | you'd rather keep in its own file than inline in this config. Each path must be
+    | relative to your project's root: absolute paths and ".." segments are refused.
     */
     'excludes_from' => [
 

@@ -210,13 +210,14 @@ it('finds a recipe\'s excludes-from file even when configured with Windows-style
     }
 });
 
-it('refuses a recipe\'s excludes-from file that is a symlink pointing outside the project', function () {
-    // The configured path has no ".." and File::isFile() follows symlinks, so only a
-    // real-path containment check catches this one.
-    $target = sys_get_temp_dir().'/sync-excludes-outside-'.Str::random(8);
+it('allows a recipe\'s excludes-from file that is a symlink to a target outside the project', function () {
+    // A shared `storage` symlinked out of the release directory is standard on
+    // Envoyer-style deploys, so containment here would refuse an ordinary config value.
+    $target = sys_get_temp_dir().'/sync-excludes-shared-'.Str::random(8);
     File::put($target, '*.log');
 
     $link = base_path('storage/app/.rsync-excludes-symlink');
+    File::ensureDirectoryExists(base_path('storage/app'));
 
     if (! @symlink($target, $link)) {
         File::delete($target);
@@ -227,16 +228,14 @@ it('refuses a recipe\'s excludes-from file that is a symlink pointing outside th
 
     try {
         $sync = resolve(Sync::class);
+        $pending = $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 
-        $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+        expect($pending)->toBeInstanceOf(PendingSync::class);
     } finally {
         @unlink($link);
         File::delete($target);
     }
-})->throws(
-    SyncException::class,
-    'The excludes_from file "storage/app/.rsync-excludes-symlink" configured for recipe "assets" resolves outside your project.',
-);
+});
 
 it('refuses to prepare a sync when a recipe\'s excludes-from file does not exist', function () {
     config(['sync.excludes_from' => ['assets' => ['storage/app/.rsync-excludes-missing']]]);
@@ -288,7 +287,7 @@ it('refuses a recipe\'s excludes-from file whose path is absolute', function () 
     $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 })->throws(
     SyncException::class,
-    'The excludes_from file "/etc/.rsync-excludes" configured for recipe "assets" resolves outside your project.',
+    'The excludes_from file "/etc/.rsync-excludes" configured for recipe "assets" must be relative to your project root, not an absolute path.',
 );
 
 it('only checks excludes-from files for the recipes being synced, not every configured recipe', function () {

@@ -177,12 +177,13 @@ class SyncException extends RuntimeException
 
     /**
      * A recipe's configured `excludes_from` path is absolute (a leading "/" or a Windows
-     * drive letter), or resolves outside the project root through a symlink.
+     * drive letter). Refused rather than honored: `base_path()` would rebase it under the
+     * project root, silently reading a different file than the one configured.
      */
-    public static function excludesFromFileUnsafe(string $recipe, string $path): self
+    public static function excludesFromFileAbsolute(string $recipe, string $path): self
     {
         return new self(sprintf(
-            'The excludes_from file "%s" configured for recipe "%s" resolves outside your project.',
+            'The excludes_from file "%s" configured for recipe "%s" must be relative to your project root, not an absolute path.',
             $path,
             $recipe,
         ));
