@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/vitamin2ag/laravel-sync/compare/v0.3.0...HEAD)
 
+- Add `sync:doctor` Artisan command to check that rsync and SSH access are ready for a real sync (local `rsync`, SSH connection & root path, remote `rsync`), with `--all` to check every configured remote
+
 ## [v0.3.0](https://github.com/vitamin2ag/laravel-sync/compare/v0.2.0...v0.3.0) - 2026-08-19
 
 - Add `sync:backups-clean` Artisan command to delete backup folders (interactive picker, `--all`, `--dry`, `--force`, `--keep=`, `--older-than=`)
