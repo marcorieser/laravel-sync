@@ -198,6 +198,9 @@ Combines with `excludes` rather than replacing it. A configured file that doesn'
 fast with a friendly error before anything is synced — checked only for the recipe(s) actually
 being synced, not every recipe defined in your config.
 
+Each path must be relative to your project's root and stay inside it: an absolute path, a `..`
+segment, or a symlink pointing outside the project is refused with the same up-front error.
+
 ### Backup Directory
 
 Relative to your project's root. When `--backup` is passed on a real pull, the local files

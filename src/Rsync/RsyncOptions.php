@@ -190,7 +190,10 @@ final readonly class RsyncOptions implements Stringable
      * `Sync::guardExcludesFromFilesExist()`'s own normalization — without it, a
      * backslash-separated configured path would build a literal path containing
      * backslashes on POSIX (a real, if oddly-named, single path segment there, not a
-     * directory separator), which wouldn't match the file the guard just validated.
+     * directory separator), which wouldn't match the file the guard just validated. That
+     * guard refusing ".." outright is what makes this identical to the path it checked;
+     * collapsing here instead would diverge from the kernel's own segment-by-segment
+     * resolution through a symlink.
      *
      * @param  array<int, string>  $paths
      */

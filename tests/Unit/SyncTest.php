@@ -260,7 +260,28 @@ it('refuses a recipe\'s excludes-from file whose path steps outside the project 
     $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 })->throws(
     SyncException::class,
-    'The excludes_from file "../../etc/.rsync-excludes" configured for recipe "assets" resolves outside your project.',
+    'The excludes_from file "../../etc/.rsync-excludes" configured for recipe "assets" must not contain ".." segments. Use a path relative to your project root.',
+);
+
+it('refuses a recipe\'s excludes-from file whose path contains a ".." segment that stays inside the project', function () {
+    // rsync gets the configured path verbatim, and the kernel resolves ".." after the
+    // preceding segment has already been followed — so a symlinked segment would make it
+    // read a file this guard never validated. Refused even though the file exists.
+    File::ensureDirectoryExists(base_path('storage/app'));
+    File::put(base_path('storage/.rsync-excludes-traversal'), '*.log');
+
+    config(['sync.excludes_from' => ['assets' => ['storage/app/../.rsync-excludes-traversal']]]);
+
+    try {
+        $sync = resolve(Sync::class);
+
+        $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+    } finally {
+        File::delete(base_path('storage/.rsync-excludes-traversal'));
+    }
+})->throws(
+    SyncException::class,
+    'The excludes_from file "storage/app/../.rsync-excludes-traversal" configured for recipe "assets" must not contain ".." segments. Use a path relative to your project root.',
 );
 
 it('refuses a recipe\'s excludes-from file whose path is absolute', function () {

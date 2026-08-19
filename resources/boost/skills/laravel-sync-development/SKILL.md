@@ -99,8 +99,8 @@ one synced recipe gets the union of every one of those recipes' excludes.
 
 Keyed by recipe name. Each entry is a file path, relative to the app's root, containing rsync exclude patterns
 (one per line) — applied via `rsync --exclude-from` alongside (not instead of) `excludes` above. A configured
-file that doesn't exist, or that resolves outside the project root, fails fast with a clear error before
-anything is synced.
+file that doesn't exist, is absolute, contains a `..` segment, or resolves outside the project root through a
+symlink fails fast with a clear error before anything is synced.
 
 ### 7. Set the backup directory (optional)
 

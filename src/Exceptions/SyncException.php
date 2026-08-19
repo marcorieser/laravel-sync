@@ -176,14 +176,26 @@ class SyncException extends RuntimeException
     }
 
     /**
-     * A recipe's configured `excludes_from` path is unsafe: either absolute (a leading
-     * "/" or a Windows drive letter) or steps outside the project root via a ".."
-     * segment.
+     * A recipe's configured `excludes_from` path is absolute (a leading "/" or a Windows
+     * drive letter), or resolves outside the project root through a symlink.
      */
     public static function excludesFromFileUnsafe(string $recipe, string $path): self
     {
         return new self(sprintf(
             'The excludes_from file "%s" configured for recipe "%s" resolves outside your project.',
+            $path,
+            $recipe,
+        ));
+    }
+
+    /**
+     * A recipe's configured `excludes_from` path contains a ".." segment, which
+     * `Sync::guardExcludesFromFilesExist()` refuses whether or not it escapes the project.
+     */
+    public static function excludesFromFileTraversal(string $recipe, string $path): self
+    {
+        return new self(sprintf(
+            'The excludes_from file "%s" configured for recipe "%s" must not contain ".." segments. Use a path relative to your project root.',
             $path,
             $recipe,
         ));
