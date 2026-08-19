@@ -26,6 +26,7 @@ A git-like artisan command to easily sync files and folders between environments
 - [Usage](#usage)
   - [Cleaning Up Backups](#cleaning-up-backups)
   - [Testing a Connection](#testing-a-connection)
+  - [Concurrency](#concurrency)
 - [Examples](#examples)
 - [Changelog](#changelog)
 - [Contributing](#contributing)
@@ -260,10 +261,8 @@ without opening any connection.
 
 ### Concurrency
 
-`sync` guards against two runs against the same remote overlapping — a cron job and a human, or two humans,
-running `sync` against the same remote at once. The second run fails immediately with a friendly error instead
-of racing the first. There's nothing to configure: the guard is automatic, and always releases once the run
-finishes (success, failure, or an aborted confirmation).
+Two `sync` runs against the same remote can't overlap — the second fails immediately rather than racing the
+first. Nothing to configure; the lock always releases when the run ends.
 
 ## Examples
 
