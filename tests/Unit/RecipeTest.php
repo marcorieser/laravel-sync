@@ -32,3 +32,11 @@ it('normalizes Windows-style backslash separators in excludes-from files', funct
 
     expect($recipe->excludesFrom)->toBe(['storage/app/.rsync-excludes']);
 });
+
+it('normalizes excludes-from files built through the constructor, not just fromArray()', function () {
+    // Sync::prepare() accepts any caller-built Recipe, and its guard reads these values as
+    // already normalized — so the constructor, not the factory, has to hold that invariant.
+    $recipe = new Recipe('assets', ['storage/app/assets/'], [], [' ..\\..\\etc\\rsync-rules ']);
+
+    expect($recipe->excludesFrom)->toBe(['../../etc/rsync-rules']);
+});

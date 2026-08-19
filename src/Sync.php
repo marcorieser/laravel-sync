@@ -472,12 +472,13 @@ class Sync
      * run aren't checked, so a broken path elsewhere in the config doesn't block it.
      *
      * Absolute paths are refused because `base_path()` silently `ltrim()`s the leading
-     * separator and rebases them under the project root (see `join_paths()`). ".." is
-     * refused rather than collapsed, unlike `guardBackupDirSafe()`: `rsync` gets the
-     * configured path verbatim, so a ".." after a symlinked segment reads a file this guard
-     * never validated. A symlink out of the project is deliberately allowed — a shared
-     * `storage` is standard on Envoyer-style deploys, and `-O` already passes arbitrary
-     * rsync flags, so containment here would break real layouts while guarding nothing.
+     * separator and rebases them under the project root (see `join_paths()`), so the file
+     * read would not be the one configured. A ".." is refused as a likely typo — nothing
+     * downstream needs it collapsed, since the flag is built from this same string.
+     *
+     * A symlink out of the project is deliberately allowed, unlike a "..": a shared `storage`
+     * is standard on Envoyer-style deploys, and `-O` already passes arbitrary rsync flags,
+     * so real containment is neither achievable here nor worth breaking those layouts for.
      *
      * `File::isFile()`, not `File::exists()`: the latter also passes for a directory, and
      * for a blank entry, since `base_path('')` is the project root.
