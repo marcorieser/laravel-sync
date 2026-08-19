@@ -43,11 +43,8 @@ it('appends a recipe\'s own excludes to that recipe\'s rsync commands', function
 });
 
 it('handles a purely numeric recipe path without PHP coercing it to an array key', function () {
-    // "123" (unlike "releases/123/") is exactly the shape PHP silently coerces to an
-    // int array key wherever it's used as one — the bug this test guards against.
-    // Looked up below via firstWhere() (a value search), not keyBy() (which would
-    // hit the very same PHP-level coercion in the test itself, independent of
-    // whether the production code being tested still has the bug).
+    // "123" is the shape PHP coerces to an int array key — the bug under test. Looked up
+    // via firstWhere(), not keyBy(), which would hit that same coercion in the test itself.
     $recipes = collect([
         new Recipe('releases', ['123', '124']),
         new Recipe('releases-again', ['123'], ['*.log']),

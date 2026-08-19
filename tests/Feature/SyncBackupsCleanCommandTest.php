@@ -228,11 +228,9 @@ it('accepts --older-than exactly at the maximum', function () {
 });
 
 it('fails with a friendly error when --keep or --older-than is a non-string value', function () {
-    // `Command::option()` is typed generically (`array|bool|string|null`) across every
-    // option on the command, even though a plain `{--keep=}` can never actually carry a
-    // non-string value through real CLI parsing. `$this->artisan()`'s array-input test
-    // helper bypasses that parsing though, so this is the one way to reach (and cover)
-    // that branch at all.
+    // `Command::option()` is typed `array|bool|string|null`, though a `{--keep=}` can only
+    // carry a string through real CLI parsing. `$this->artisan()` bypasses that parsing,
+    // making this the only way to reach that branch.
     File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
 
     $this->artisan('sync:backups-clean', ['--keep' => true, '--no-interaction' => true])

@@ -335,11 +335,8 @@ it('does not follow a symlink when summing a backup folder\'s size', function ()
 });
 
 it('treats a glob metacharacter in backup_dir as a literal character, not a wildcard', function () {
-    // "*" and "?" are illegal in a filename on Windows, so this uses "[" / "]" — valid
-    // everywhere — to stay portable across the CI matrix. Left unescaped, glob() would
-    // read "[literal]" as a bracket expression (matching a single char from the set
-    // "l,i,t,e,r,a") instead of the literal 9-character folder name, and silently find
-    // nothing.
+    // "[" / "]" rather than "*" / "?", which are illegal in Windows filenames. Unescaped,
+    // glob() reads "[literal]" as a bracket expression and finds nothing.
     $dir = 'glob-test-'.Str::random(8).'[literal]';
 
     File::ensureDirectoryExists(base_path("{$dir}/2026-07-24_134530"));
@@ -356,10 +353,8 @@ it('treats a glob metacharacter in backup_dir as a literal character, not a wild
 it('finds backups even when a redundant ".." segment in backup_dir points through a directory that does not exist', function () {
     File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
 
-    // "phantom-*" is never created on disk. The raw, uncollapsed string would need it
-    // to exist to resolve through its own "..", so this only finds anything if
-    // backups() reads from the dot-collapsed directory guardBackupDirSafe() validated,
-    // not the literal configured value.
+    // "phantom-*" never exists on disk, so the raw string can't resolve through its own
+    // "..". This finds anything only if backups() reads the dot-collapsed directory.
     $phantom = 'phantom-'.Str::random(8);
     config(['sync.backup_dir' => "{$phantom}/../{$this->backupDir}"]);
 

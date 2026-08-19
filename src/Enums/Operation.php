@@ -11,9 +11,6 @@ enum Operation: string
     case Push = 'push';
     case Pull = 'pull';
 
-    /**
-     * Get a human-readable label for the operation.
-     */
     public function label(): string
     {
         return match ($this) {
@@ -25,8 +22,8 @@ enum Operation: string
     /**
      * Resolve an operation from a raw string, throwing when it isn't a known operation.
      *
-     * The friendly error a user sees is composed one layer up, by
-     * `SyncException::invalidOperation()`.
+     * This message is for developers; `SyncException::invalidOperation()` composes the one
+     * users see.
      */
     public static function fromInput(string $value): self
     {

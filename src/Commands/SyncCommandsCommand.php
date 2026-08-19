@@ -13,9 +13,6 @@ class SyncCommandsCommand extends Command
 {
     use ResolvesSyncInput;
 
-    /**
-     * The command signature.
-     */
     protected $signature = 'sync:commands
         {operation? : The operation to perform (push or pull)}
         {remote? : The remote to sync with}
@@ -25,14 +22,8 @@ class SyncCommandsCommand extends Command
         {--D|dry : Preview the options used for a dry run}
         {--B|backup : Preview the backup that would run before a real pull}';
 
-    /**
-     * The command description.
-     */
     protected $description = 'List the rsync commands that would be run';
 
-    /**
-     * Execute the console command.
-     */
     public function handle(): int
     {
         if (! ($pending = $this->resolvePendingSync()) instanceof PendingSync) {

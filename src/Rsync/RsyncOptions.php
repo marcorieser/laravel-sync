@@ -12,8 +12,8 @@ final readonly class RsyncOptions implements Stringable
     /**
      * Rsync flags known to the package, with a human-readable label for prompts.
      *
-     * `--dry-run` is deliberately not here — it's added by `resolve()` when `$dry` is
-     * true, driven by the command's own `-D|--dry` flag, not picked from this list.
+     * `--dry-run` is deliberately absent: `resolve()` adds it from the command's `-D|--dry`
+     * flag, so it must not also be selectable here.
      */
     public const array AVAILABLE = [
         '--archive' => 'Archive mode (preserves permissions, timestamps, symlinks, ...)',
@@ -54,9 +54,10 @@ final readonly class RsyncOptions implements Stringable
     ) {}
 
     /**
-     * Resolve the effective rsync options, adding the flags implied by a dry or verbose
-     * run, and stripping rsync's own backup flags when `$backup` is true — they'd be
-     * redundant with (and could conflict with) the package's own full-copy backup pass.
+     * Resolve the effective rsync options, adding the flags implied by a dry or verbose run.
+     *
+     * When `$backup` is true, rsync's own backup flags are stripped: they'd conflict with
+     * the package's full-copy backup pass.
      *
      * @param  array<int, string>  $flags
      */
@@ -80,14 +81,11 @@ final readonly class RsyncOptions implements Stringable
     }
 
     /**
-     * Strip rsync's own backup flags — long form (`--backup`, `--backup-dir=DIR`, or
-     * the two-token `--backup-dir DIR`) and short form (`-b`, including bundled into a
-     * cluster like `-ab`) — so they never run redundantly alongside the package's own
-     * backup pass.
+     * Strip rsync's own backup flags: `--backup`, `--backup-dir=DIR`, the two-token
+     * `--backup-dir DIR`, and `-b` (including bundled into a cluster like `-ab`).
      *
-     * `--backup-dir` (without `=`) takes its value from the very next token, exactly
-     * like rsync's own argument parsing would, so that token is dropped too — even if
-     * it happens to look like another flag.
+     * Bare `--backup-dir` consumes the next token as its value, mirroring rsync's own
+     * argument parsing, even when that token looks like another flag.
      *
      * @param  Collection<int, string>  $flags
      * @return Collection<int, string>
@@ -127,11 +125,8 @@ final readonly class RsyncOptions implements Stringable
     }
 
     /**
-     * Strip rsync's short `-b` backup flag from a short-option cluster (e.g. `-ab`
-     * becomes `-a`), dropping the flag entirely when `-b` was the only option in it.
-     *
-     * A bare long flag (starting with `--`) is never a short-option cluster and is
-     * returned unchanged.
+     * Strip rsync's short `-b` backup flag from a short-option cluster (e.g. `-ab` becomes
+     * `-a`), returning null when `-b` was the only option in it.
      */
     private static function stripShortBackupFlag(string $flag): ?string
     {
@@ -147,11 +142,9 @@ final readonly class RsyncOptions implements Stringable
     /**
      * Whether any of the resolved flags produce visible output while syncing.
      *
-     * Flags outside the curated `AVAILABLE` list (e.g. a raw `--option=` override) are of
-     * unknown behavior and assumed to produce output, so streaming isn't silently suppressed
-     * — except a `--exclude=PATTERN` flag (added by `withExcludes()`, never itself in
-     * `AVAILABLE` since its value is user-defined), which is explicitly known and produces
-     * none.
+     * Flags outside `AVAILABLE` are assumed to produce output rather than silently suppressing
+     * streaming; `--exclude=PATTERN` is exempted because its user-defined value keeps it out of
+     * `AVAILABLE` even though it's known to be silent.
      */
     public function producesOutput(): bool
     {
@@ -169,10 +162,9 @@ final readonly class RsyncOptions implements Stringable
     }
 
     /**
-     * Return a copy of these options with a `--exclude=PATTERN` flag appended for each
-     * given pattern — used to layer one recipe path's own excludes onto the sync's
-     * otherwise-shared rsync options, without mutating (or affecting any other path's
-     * copy of) the original.
+     * Return a copy of these options with a `--exclude=PATTERN` flag appended per pattern,
+     * layering one recipe path's excludes onto the sync's shared options without affecting
+     * any other path.
      *
      * @param  array<int, string>  $excludes
      */

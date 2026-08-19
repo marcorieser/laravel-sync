@@ -13,13 +13,10 @@ use Vitamin2\Sync\Sync;
 use function Laravel\Prompts\select;
 
 /**
- * Shared remote resolution for any command with a `{remote? : ...}` argument — split out
- * of `ResolvesSyncInput` (which composes this) so a command that resolves only a remote,
- * like `sync:test-connection`, doesn't have to mix in that trait's whole shape just to
- * reuse this piece. Larastan validates a trait's option/argument references against each
- * using command's own `$signature`, and `ResolvesSyncInput` references options (`--all`,
- * `--dry`, ...) a remote-only command doesn't have — this trait only ever touches the
- * `remote` argument, which every command using it declares identically.
+ * Remote resolution, split out of `ResolvesSyncInput` (which composes this) for commands
+ * that resolve only a remote, like `sync:test-connection`. Larastan validates a trait's
+ * option/argument references against each using command's own `$signature`, so mixing in
+ * the full trait there would fail analysis over options that command doesn't declare.
  *
  * @mixin Command
  */
@@ -45,8 +42,8 @@ trait ResolvesRemote
     }
 
     /**
-     * Read a command argument, prompting for it interactively when missing,
-     * and fail with `$missingException` when it's still not a non-empty string.
+     * Read an argument, prompting when it's missing and failing with `$missingException`
+     * when it's still not a non-empty string.
      *
      * @param  array<int|string, string>  $options
      * @param  Closure(): SyncException  $missingException

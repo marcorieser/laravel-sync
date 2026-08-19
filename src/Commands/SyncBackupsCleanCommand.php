@@ -18,16 +18,12 @@ use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\table;
 
 /**
- * Doesn't use `ResolvesSyncInput` — it resolves no operation, remote, recipes, or
- * rsync options, so that trait's shape doesn't apply here.
+ * No `ResolvesSyncInput`: this command resolves no operation, remote, recipes, or options.
  */
 class SyncBackupsCleanCommand extends Command
 {
     use ConfirmsUnlessSkipped;
 
-    /**
-     * The command signature.
-     */
     protected $signature = 'sync:backups-clean
         {--A|all : Delete every backup}
         {--D|dry : Preview which backups would be deleted}
@@ -35,22 +31,15 @@ class SyncBackupsCleanCommand extends Command
         {--K|keep= : Keep the N newest backups, deleting the rest}
         {--older-than= : Delete backups older than N days}';
 
-    /**
-     * The command description.
-     */
     protected $description = 'Delete backup folders created by a backed-up pull';
 
-    /**
-     * Execute the console command.
-     */
     public function handle(): int
     {
         $sync = resolve(Sync::class);
 
         try {
-            // Validated before backups() and the empty check: a malformed value or
-            // --all conflict must fail the same way whether or not backups exist —
-            // no silent "No backups found" on a typo'd flag the one time the dir's empty.
+            // Validated before the empty check: a malformed value or `--all` conflict must
+            // fail the same way whether or not any backups exist.
             [$keep, $olderThan] = $this->resolveRetentionOptions();
 
             $backups = $sync->backups();
@@ -92,9 +81,7 @@ class SyncBackupsCleanCommand extends Command
     }
 
     /**
-     * Resolve which backups to delete: by retention criteria (`--keep`/`--older-than`)
-     * when either is given, every backup with `--all`, an interactive multiselect
-     * otherwise, or a friendly error when nothing applies.
+     * Resolve which backups to delete, from the retention options, `--all`, or a prompt.
      *
      * @param  Collection<int, BackupFolder>  $backups
      * @return Collection<int, BackupFolder>
@@ -123,9 +110,8 @@ class SyncBackupsCleanCommand extends Command
     }
 
     /**
-     * `--all` conflict is checked by presence alone, before parsing, so
-     * `--all --keep=abc` reports the conflict rather than a value error that would
-     * misleadingly suggest the number format is the problem.
+     * The `--all` conflict is checked by presence alone, before parsing, so `--all --keep=abc`
+     * reports the conflict rather than a misleading number-format error.
      *
      * @return array{0: ?int, 1: ?int}
      */
@@ -143,19 +129,15 @@ class SyncBackupsCleanCommand extends Command
 
         return [
             $this->resolveNonNegativeIntOption('keep'),
-            // Bounded, unlike `--keep`: fed into now()->subDays(), a huge value wraps
-            // Carbon's day arithmetic back around to a cutoff near *now*, silently
-            // inverting intent from "keep almost everything" to "delete everything".
-            // `--keep` has no such arithmetic — take() on a huge value just harmlessly
-            // takes the whole (smaller) backup list.
+            // Bounded, unlike `--keep`: a huge value fed into `now()->subDays()` wraps Carbon's
+            // arithmetic back to a cutoff near *now*, inverting the intent to "delete everything".
             $this->resolveNonNegativeIntOption('older-than', self::MAX_OLDER_THAN_DAYS),
         ];
     }
 
     /**
-     * Comfortably beyond any real backup-retention window (over 100 years), while
-     * staying far short of where `Carbon::subDays()`'s day-to-timestamp arithmetic
-     * risks overflowing.
+     * Over 100 years: beyond any real retention window, far short of where
+     * `Carbon::subDays()`'s arithmetic risks overflowing.
      */
     private const int MAX_OLDER_THAN_DAYS = 36500;
 
@@ -168,8 +150,8 @@ class SyncBackupsCleanCommand extends Command
         }
 
         if (! is_string($value)) {
-            // Not reachable via `{--keep=}`'s single-value definition, but option()
-            // is typed generically across all options, so this guards the cast below.
+            // Unreachable via `{--keep=}`'s single-value definition, but `option()` is typed
+            // generically, so this guards the cast below.
             throw SyncException::invalidRetentionValue($option, get_debug_type($value));
         }
 

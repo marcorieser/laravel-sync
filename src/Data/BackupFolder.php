@@ -25,9 +25,8 @@ final readonly class BackupFolder
     /**
      * Hydrate a backup folder from its absolute path and size on disk.
      *
-     * The folder's name is its own timestamp (`Backup::FORMAT`, see `Backup::now()`), so
-     * `createdAt` is parsed straight from it instead of reading the filesystem's own
-     * (less reliable, and platform-dependent) creation/modification time.
+     * `createdAt` comes from the folder name, which is its own `Backup::FORMAT` timestamp,
+     * not from the filesystem's platform-dependent creation/modification time.
      */
     public static function fromPath(string $path, int $size): self
     {
@@ -39,14 +38,11 @@ final readonly class BackupFolder
     }
 
     /**
-     * Hydrate a backup folder from its absolute path, or return null if the name isn't
-     * a valid backup timestamp — without throwing, and parsing the name only once.
+     * Hydrate a backup folder from its absolute path, or return null if the name isn't a
+     * valid backup timestamp.
      *
-     * `$size` is a callback, not a plain value: `Sync::backups()` needs to reject an
-     * invalid folder name before paying for its (potentially expensive, recursive)
-     * size calculation, and this is the single point where validity is known — a
-     * separate "is this valid?" check followed by a plain `fromPath()` call would parse
-     * the same name twice.
+     * `$size` is a callback, not a plain value, so an invalid folder name is rejected
+     * before paying for its recursive size calculation.
      *
      * @param  callable(): int  $size
      */
@@ -63,18 +59,11 @@ final readonly class BackupFolder
     }
 
     /**
-     * Parse a folder name against `Backup::FORMAT`, rejecting it if the format doesn't
-     * match.
+     * Parse a folder name against `Backup::FORMAT`, rejecting it if the format doesn't match.
      *
-     * Uses the native `DateTimeImmutable::createFromFormat()` (not `Carbon::createFromFormat()`)
-     * because the native parser genuinely returns `false` on a mismatched format instead of
-     * throwing, so an invalid name fails predictably here instead of via an uncaught Carbon
-     * parse exception.
-     *
-     * Also rejects a structurally-shaped but out-of-range name (e.g. "2026-13-45_999999")
-     * that the native parser would otherwise silently roll over into a different, valid
-     * date — caught by reformatting the parsed result and requiring it to round-trip back
-     * to the exact original string.
+     * Native `DateTimeImmutable`, not `Carbon::createFromFormat()`: the native parser returns
+     * `false` on a mismatch instead of throwing. The round-trip check rejects an in-shape but
+     * out-of-range name (e.g. "2026-13-45_999999") that it would otherwise silently roll over.
      */
     private static function parse(string $name): DateTimeImmutable|false
     {
@@ -98,9 +87,6 @@ final readonly class BackupFolder
 
     /**
      * The folder's size, formatted for display (e.g. "12.4 MB").
-     *
-     * Shared by `label()` and the `sync:backups-clean --dry` preview table, so the two
-     * can't silently disagree on formatting.
      */
     public function formattedSize(): string
     {
@@ -108,7 +94,7 @@ final readonly class BackupFolder
     }
 
     /**
-     * How long ago the folder was created, formatted for display (e.g. "2 weeks ago").
+     * How long ago the folder was created (e.g. "2 weeks ago").
      */
     public function age(): string
     {
