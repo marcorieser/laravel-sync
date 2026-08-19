@@ -543,3 +543,50 @@ it('validates the given Backup\'s own dir, not just the currently configured bac
         $backup,
     );
 })->throws(SyncException::class);
+
+it('gets the same lock for the same remote', function () {
+    // A remote name AND root unique to this test (not "staging"/"production"): the lock
+    // file is keyed by the remote's resolved identity (root, for a local remote), not its
+    // config name, and lives under the real storage_path(), shared across parallel test
+    // workers or concurrent CI runs — a fixed root reused here could collide with another
+    // run's own (instantaneous) sync against a remote pointed at the same root.
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        $name = 'lock-test-'.Str::random(8) => ['root' => base_path('storage/app/'.$name)],
+    ])]);
+
+    $sync = resolve(Sync::class);
+    $remote = $sync->remote($name);
+
+    $first = $sync->lock($remote);
+    expect($first->acquire())->toBeTrue();
+
+    $second = $sync->lock($remote);
+    expect($second->acquire())->toBeFalse();
+
+    $first->release();
+
+    File::delete($first->path);
+});
+
+it('gets independent locks for different remotes', function () {
+    // Roots (not just names) must differ too — see the comment above, the lock key is
+    // now derived from the remote's resolved identity, not its config name.
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        $nameA = 'lock-test-a-'.Str::random(8) => ['root' => base_path('storage/app/'.$nameA)],
+        $nameB = 'lock-test-b-'.Str::random(8) => ['root' => base_path('storage/app/'.$nameB)],
+    ])]);
+
+    $sync = resolve(Sync::class);
+
+    $lockA = $sync->lock($sync->remote($nameA));
+    $lockB = $sync->lock($sync->remote($nameB));
+
+    expect($lockA->acquire())->toBeTrue();
+    expect($lockB->acquire())->toBeTrue();
+
+    $lockA->release();
+    $lockB->release();
+
+    File::delete($lockA->path);
+    File::delete($lockB->path);
+});

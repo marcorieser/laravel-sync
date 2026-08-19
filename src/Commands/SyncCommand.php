@@ -10,6 +10,7 @@ use Vitamin2\Sync\Commands\Concerns\ResolvesSyncInput;
 use Vitamin2\Sync\Data\Backup;
 use Vitamin2\Sync\Data\Recipe;
 use Vitamin2\Sync\Enums\Operation;
+use Vitamin2\Sync\Exceptions\SyncException;
 use Vitamin2\Sync\PendingSync;
 
 use function Laravel\Prompts\confirm;
@@ -45,6 +46,25 @@ class SyncCommand extends Command
             return self::FAILURE;
         }
 
+        $lock = $this->syncService()->lock($pending->remote);
+
+        try {
+            if (! $lock->acquire()) {
+                throw SyncException::lockUnavailable($pending->remote->name);
+            }
+
+            return $this->runPending($pending);
+        } catch (SyncException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function runPending(PendingSync $pending): int
+    {
         $dry = (bool) $this->option('dry');
 
         if (! $this->confirmUnlessSkipped($dry, fn () => $this->confirmSync($pending))) {

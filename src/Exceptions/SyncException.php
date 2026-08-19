@@ -148,4 +148,21 @@ class SyncException extends RuntimeException
     {
         return new self(sprintf('The --%s option must be at most %d, got "%s".', $option, $max, $value));
     }
+
+    /**
+     * The per-remote lock couldn't be acquired — either another `sync` run already
+     * holds it, or the lock file itself couldn't be created (e.g. a permissions problem
+     * on the storage directory). `SyncLock::acquire()` can't tell those two apart, so
+     * the message doesn't claim either one outright, and doesn't spell out the lock
+     * directory's path — that's `Sync::lock()`'s detail to own, not duplicated here.
+     */
+    public static function lockUnavailable(string $remote): self
+    {
+        return new self(sprintf(
+            'Could not start a sync for "%s": another sync may already be running for it. '.
+            'Wait for it to finish, then try again — if this keeps happening, check that '.
+            'the sync lock directory under your app\'s storage path is writable.',
+            $remote,
+        ));
+    }
 }

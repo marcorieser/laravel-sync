@@ -6,6 +6,7 @@ namespace Vitamin2\Sync;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
+use Vitamin2\Sync\Concurrency\SyncLock;
 use Vitamin2\Sync\Data\Backup;
 use Vitamin2\Sync\Data\BackupFolder;
 use Vitamin2\Sync\Data\Recipe;
@@ -437,6 +438,34 @@ class Sync
     public function remote(string $name): Remote
     {
         return $this->remotes()->get($name) ?? throw SyncException::unknownRemote($name);
+    }
+
+    /**
+     * Get the concurrency guard for a remote, preventing two `sync` runs against it at
+     * once. Keyed by a hash of the remote's resolved *physical* target (`host:port` plus
+     * `root` for a remote host, just `root` for a local one) rather than its config name
+     * or SSH `user`, so two differently-named config entries that happen to point at the
+     * same physical host/root (an alias, a phased-migration duplicate, or the same host
+     * reachable under two different SSH users) still contend for the same lock — the race
+     * this guards against is two `rsync` processes writing the same remote filesystem
+     * path, which `user` has no bearing on. `xxh128`, not `md5`, since the security arch
+     * preset forbids `md5` as a weak-hash smell, even though this use is a filename, not
+     * anything cryptographic.
+     *
+     * The identity is run through `normalizePath()` before hashing, the same case-folding
+     * comparison the class already uses in `guardNotSamePath()` to recognize "same physical
+     * target" — without it, two entries differing only by case (a hostname, which DNS
+     * treats case-insensitively, or a local `root` on a case-insensitive filesystem like
+     * macOS/Windows) would hash to different lock files and silently defeat the alias
+     * dedup this method exists for.
+     */
+    public function lock(Remote $remote): SyncLock
+    {
+        $identity = $remote->isLocal()
+            ? $remote->root
+            : sprintf('%s:%d%s', $remote->host, $remote->port, $remote->root);
+
+        return new SyncLock(storage_path('framework/cache/sync-locks/'.hash('xxh128', $this->normalizePath($identity)).'.lock'));
     }
 
     /**
