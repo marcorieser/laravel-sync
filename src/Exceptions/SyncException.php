@@ -189,8 +189,8 @@ class SyncException extends RuntimeException
     }
 
     /**
-     * A recipe's configured `excludes_from` path contains a ".." segment, which
-     * `Sync::guardExcludesFromFilesExist()` refuses whether or not it escapes the project.
+     * A recipe's configured `excludes_from` path contains a ".." segment — refused whether
+     * or not it escapes the project.
      */
     public static function excludesFromFileTraversal(string $recipe, string $path): self
     {

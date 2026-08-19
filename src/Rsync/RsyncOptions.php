@@ -179,21 +179,15 @@ final readonly class RsyncOptions implements Stringable
     }
 
     /**
-     * Return a copy of these options with a `--exclude-from=FILE` flag appended for each
-     * given file, resolved to an absolute path — `rsync` always reads an exclude-from
-     * file from the *local* (control) machine, regardless of push/pull direction, so a
-     * relative path only resolves correctly as long as the process also runs with the
-     * project root as its working directory (not guaranteed for a plain sync, unlike the
-     * backup pass in `BackupCommand`).
+     * Return a copy of these options with a `--exclude-from=FILE` flag appended per file,
+     * resolved to an absolute path: `rsync` reads an exclude-from file from the local
+     * machine whatever the direction, and a plain sync isn't guaranteed to run from the
+     * project root (unlike the backup pass in `BackupCommand`).
      *
-     * Normalizes a Windows-style `\` separator to `/` first, matching
-     * `Sync::guardExcludesFromFilesExist()`'s own normalization — without it, a
-     * backslash-separated configured path would build a literal path containing
-     * backslashes on POSIX (a real, if oddly-named, single path segment there, not a
-     * directory separator), which wouldn't match the file the guard just validated. That
-     * guard refusing ".." outright is what makes this identical to the path it checked;
-     * collapsing here instead would diverge from the kernel's own segment-by-segment
-     * resolution through a symlink.
+     * The `\`-to-`/` normalization mirrors `Sync::guardExcludesFromFilesExist()` so both
+     * address the same file on POSIX; don't collapse ".." to match it either — that guard
+     * refuses ".." outright, and collapsing here would diverge from the kernel's
+     * segment-by-segment resolution through a symlink.
      *
      * @param  array<int, string>  $paths
      */
@@ -207,10 +201,8 @@ final readonly class RsyncOptions implements Stringable
 
     /**
      * Return a copy of these options with one flag appended per value, formatted by
-     * `$format` — the shared "append one flag per value" shape behind `withExcludes()`
-     * and `withExcludeFrom()`. Returns `$this` unchanged (not a new, merely
-     * value-identical instance) when `$values` is empty, so a caller with nothing to add
-     * can cheaply detect a no-op via identity.
+     * `$format`. Returns `$this` itself when `$values` is empty, not a value-identical
+     * copy — callers detect the no-op by identity.
      *
      * @param  array<int, string>  $values
      * @param  Closure(string): string  $format

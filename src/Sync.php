@@ -458,30 +458,19 @@ class Sync
     }
 
     /**
-     * Guard that every `excludes_from` file configured for the given recipes actually
-     * exists as a file, and doesn't resolve outside the project root — checked only for
-     * the recipes being synced, not every configured recipe, so a broken `excludes_from`
-     * path on a recipe that isn't part of this run doesn't block it. `rsync` itself would
-     * fail with a much less friendly error partway through the transfer otherwise.
+     * Guard that every `excludes_from` file configured for the recipes being synced exists
+     * and stays inside the project — `rsync` would otherwise fail mid-transfer with a much
+     * rawer error. Recipes outside this run aren't checked, so a broken path elsewhere in
+     * the config doesn't block it.
      *
-     * Refuses an absolute path (a leading "/" or a Windows drive letter like "C:") the
-     * same way `guardBackupDirSafe()` does for `backup_dir`: `base_path()` doesn't error
-     * on one, it silently `ltrim()`s the leading separator (see `join_paths()`) and
-     * rebases it under the project root instead — so an absolute-looking configured path
-     * would otherwise resolve to a different, most likely nonexistent, file without any
-     * indication that it was never read as an absolute path to begin with.
+     * Absolute paths are refused because `base_path()` silently `ltrim()`s the leading
+     * separator and rebases them under the project root (see `join_paths()`). ".." is
+     * refused rather than collapsed, unlike `guardBackupDirSafe()`: `rsync` gets the
+     * configured path verbatim, so a ".." after a symlinked segment reads a file this guard
+     * never validated. "." and repeated separators can't traverse, so they're left alone.
      *
-     * Refuses any ".." segment rather than lexically collapsing it, unlike
-     * `guardBackupDirSafe()`: `rsync` reads the configured path as-is, and the kernel
-     * resolves it segment by segment, so a ".." following a symlinked segment lands
-     * somewhere the collapsed path never pointed. Rejecting ".." outright keeps the file
-     * validated here and the file `rsync` reads provably the same one — "." and repeated
-     * separators are left alone, since neither can traverse.
-     *
-     * `File::isFile()`, not `File::exists()`: the latter is also true for a directory (or
-     * for a blank entry, since `base_path('')` resolves to the always-existing project
-     * root), which would silently pass this guard and only surface as rsync's own raw
-     * error once `--exclude-from=` actually points `rsync` at something that isn't a file.
+     * `File::isFile()`, not `File::exists()`: the latter also passes for a directory, and
+     * for a blank entry, since `base_path('')` is the project root.
      *
      * @param  Collection<int, Recipe>  $recipes
      */
@@ -509,17 +498,13 @@ class Sync
     }
 
     /**
-     * Resolve the (already lexically-safe, already confirmed to exist) excludes-from
-     * file's real path and refuse it unless it's actually contained within the real
-     * project root — the lexical checks in `guardExcludesFromFilesExist()` alone can't
-     * catch a project-internal *symlink* whose target lives outside the project (e.g.
-     * `storage/app/link -> /etc/passwd`), which still passes both them and
-     * `File::isFile()`. Mirrors `guardBackupDirNotEscapingRootOnDisk()`'s same real-path
-     * containment check for `backup_dir`.
+     * Refuse the excludes-from file unless its real path is inside the real project root:
+     * the lexical checks can't catch an in-project symlink whose target lives outside (e.g.
+     * `storage/app/link -> /etc/passwd`), which passes `File::isFile()` too.
      *
-     * Unlike that guard, no "walk up to the nearest existing ancestor" is needed here:
-     * `guardExcludesFromFilesExist()` already confirmed the file itself exists before
-     * calling this, so `realpath()` on the file directly is always meaningful.
+     * No walk up to the nearest existing ancestor as in
+     * `guardBackupDirNotEscapingRootOnDisk()` — the caller has already confirmed the file
+     * itself exists, so `realpath()` on it always resolves.
      */
     private function guardExcludesFromFileNotEscapingRootOnDisk(string $recipeName, string $path, string $normalized): void
     {

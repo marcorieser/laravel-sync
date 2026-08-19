@@ -116,10 +116,6 @@ final readonly class PendingSync
     }
 
     /**
-     * De-duplicated union of two string lists, shared by `pathExcludes()`'s `excludes`
-     * and `excludesFrom` merge branches — the same "combine every recipe's own values for
-     * a shared path" shape, just applied to two different fields.
-     *
      * @param  array<int, string>  $a
      * @param  array<int, string>  $b
      * @return array<int, string>

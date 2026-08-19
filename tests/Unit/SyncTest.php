@@ -194,10 +194,8 @@ it('allows a recipe whose excludes-from file exists', function () {
 });
 
 it('finds a recipe\'s excludes-from file even when configured with Windows-style backslash separators', function () {
-    // The guard's existence check must use the same collapsed (`/`-separated) path it
-    // already validated for traversal safety — not the raw configured string, which a
-    // POSIX filesystem would otherwise treat as one oddly-named segment containing
-    // literal backslashes rather than a nested path.
+    // POSIX treats an unnormalized backslash path as one oddly-named segment, not a nested
+    // path, so the guard and the `--exclude-from=` flag must both normalize it to "/".
     config(['sync.excludes_from' => ['assets' => ['storage\\app\\.rsync-excludes-backslash']]]);
     File::ensureDirectoryExists(base_path('storage/app'));
     File::put(base_path('storage/app/.rsync-excludes-backslash'), '*.log');
@@ -213,9 +211,8 @@ it('finds a recipe\'s excludes-from file even when configured with Windows-style
 });
 
 it('refuses a recipe\'s excludes-from file that is a symlink pointing outside the project', function () {
-    // A lexical dot-segment check alone can't catch this: the configured path itself
-    // has no ".." and passes File::isFile() (which follows symlinks), so only a
-    // real-path containment check — like guardBackupDirSafe()'s own — closes it.
+    // The configured path has no ".." and File::isFile() follows symlinks, so only a
+    // real-path containment check catches this one.
     $target = sys_get_temp_dir().'/sync-excludes-outside-'.Str::random(8);
     File::put($target, '*.log');
 
@@ -264,9 +261,8 @@ it('refuses a recipe\'s excludes-from file whose path steps outside the project 
 );
 
 it('refuses a recipe\'s excludes-from file whose path contains a ".." segment that stays inside the project', function () {
-    // rsync gets the configured path verbatim, and the kernel resolves ".." after the
-    // preceding segment has already been followed — so a symlinked segment would make it
-    // read a file this guard never validated. Refused even though the file exists.
+    // Refused even though the file exists: rsync gets the path verbatim, and a ".." after
+    // a symlinked segment would read a file the guard never validated.
     File::ensureDirectoryExists(base_path('storage/app'));
     File::put(base_path('storage/.rsync-excludes-traversal'), '*.log');
 
