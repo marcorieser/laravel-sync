@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync;
+namespace Vitamin2\Sync;
 
 use Illuminate\Support\ServiceProvider;
-use MarcoRieser\Sync\Commands\SyncBackupsCleanCommand;
-use MarcoRieser\Sync\Commands\SyncCommand;
-use MarcoRieser\Sync\Commands\SyncCommandsCommand;
-use MarcoRieser\Sync\Commands\SyncListCommand;
-use MarcoRieser\Sync\Commands\SyncTestConnectionCommand;
 use Override;
+use Vitamin2\Sync\Commands\SyncBackupsCleanCommand;
+use Vitamin2\Sync\Commands\SyncCommand;
+use Vitamin2\Sync\Commands\SyncCommandsCommand;
+use Vitamin2\Sync\Commands\SyncListCommand;
+use Vitamin2\Sync\Commands\SyncTestConnectionCommand;
 
 class SyncServiceProvider extends ServiceProvider
 {

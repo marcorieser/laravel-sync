@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use MarcoRieser\Sync\Data\Remote;
+use Vitamin2\Sync\Data\Remote;
 
 it('hydrates from a full config array', function () {
     $remote = Remote::fromArray('production', [

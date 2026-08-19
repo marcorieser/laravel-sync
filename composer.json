@@ -38,12 +38,12 @@
     },
     "autoload": {
         "psr-4": {
-            "MarcoRieser\\Sync\\": "src/"
+            "Vitamin2\\Sync\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "MarcoRieser\\Sync\\Tests\\": "tests/",
+            "Vitamin2\\Sync\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/",
             "Workbench\\Database\\Factories\\": "workbench/database/factories/",
             "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
@@ -103,10 +103,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "MarcoRieser\\Sync\\SyncServiceProvider"
+                "Vitamin2\\Sync\\SyncServiceProvider"
             ],
             "aliases": {
-                "Sync": "MarcoRieser\\Sync\\Facades\\Sync"
+                "Sync": "Vitamin2\\Sync\\Facades\\Sync"
             }
         }
     },

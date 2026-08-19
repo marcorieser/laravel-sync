@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Enums;
+namespace Vitamin2\Sync\Enums;
 
 use ValueError;
 

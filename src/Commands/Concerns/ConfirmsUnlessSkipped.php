@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Commands\Concerns;
+namespace Vitamin2\Sync\Commands\Concerns;
 
 use Closure;
 use Illuminate\Console\Command;

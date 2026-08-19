@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Number;
-use MarcoRieser\Sync\Data\BackupFolder;
+use Vitamin2\Sync\Data\BackupFolder;
 
 it('parses the name, path, size, and created-at timestamp from a folder path', function () {
     $folder = BackupFolder::fromPath(base_path('.sync-backups/2026-07-24_134530'), 1024);

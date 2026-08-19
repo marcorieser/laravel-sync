@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use MarcoRieser\Sync\Data\Backup;
-use MarcoRieser\Sync\Rsync\BackupCommand;
+use Vitamin2\Sync\Data\Backup;
+use Vitamin2\Sync\Rsync\BackupCommand;
 
 beforeEach(function () {
     $this->backup = new Backup('.sync-backups', '2026-07-24_134530');

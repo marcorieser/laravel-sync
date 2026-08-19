@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Tests;
+namespace Vitamin2\Sync\Tests;
 
-use MarcoRieser\Sync\SyncServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Vitamin2\Sync\SyncServiceProvider;
 
 abstract class TestCase extends Orchestra
 {

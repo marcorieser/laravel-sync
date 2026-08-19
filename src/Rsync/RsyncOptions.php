@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Rsync;
+namespace Vitamin2\Sync\Rsync;
 
 use Illuminate\Support\Collection;
 use Stringable;

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Commands;
+namespace Vitamin2\Sync\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Support\Facades\Process;
-use MarcoRieser\Sync\Commands\Concerns\ResolvesRemote;
-use MarcoRieser\Sync\Exceptions\SyncException;
-use MarcoRieser\Sync\Ssh\ConnectionCommand;
+use Vitamin2\Sync\Commands\Concerns\ResolvesRemote;
+use Vitamin2\Sync\Exceptions\SyncException;
+use Vitamin2\Sync\Ssh\ConnectionCommand;
 
 /**
  * Uses `ResolvesRemote`, not the full `ResolvesSyncInput` — this command resolves only a

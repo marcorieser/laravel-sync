@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Facades;
+namespace Vitamin2\Sync\Facades;
 
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @see \MarcoRieser\Sync\Sync
+ * @see \Vitamin2\Sync\Sync
  */
 class Sync extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return \MarcoRieser\Sync\Sync::class;
+        return \Vitamin2\Sync\Sync::class;
     }
 }

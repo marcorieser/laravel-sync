@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use MarcoRieser\Sync\Data\Remote;
-use MarcoRieser\Sync\Ssh\ConnectionCommand;
+use Vitamin2\Sync\Data\Remote;
+use Vitamin2\Sync\Ssh\ConnectionCommand;
 
 beforeEach(function () {
     $this->remote = Remote::fromArray('production', [

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Data;
+namespace Vitamin2\Sync\Data;
 
 final readonly class Recipe
 {

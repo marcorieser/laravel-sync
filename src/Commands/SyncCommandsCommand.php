@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Commands;
+namespace Vitamin2\Sync\Commands;
 
 use Illuminate\Console\Command;
-use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
-use MarcoRieser\Sync\PendingSync;
 use Stringable;
+use Vitamin2\Sync\Commands\Concerns\ResolvesSyncInput;
+use Vitamin2\Sync\PendingSync;
 
 class SyncCommandsCommand extends Command
 {
