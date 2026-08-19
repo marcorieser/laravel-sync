@@ -26,6 +26,7 @@ A git-like artisan command to easily sync files and folders between environments
 - [Usage](#usage)
   - [Cleaning Up Backups](#cleaning-up-backups)
   - [Testing a Connection](#testing-a-connection)
+  - [Checking Readiness](#checking-readiness)
 - [Examples](#examples)
 - [Changelog](#changelog)
 - [Contributing](#contributing)
@@ -205,12 +206,13 @@ php artisan sync {push|pull} {remote} {recipe...} [options]
 | `sync:commands` | Print the `rsync` commands that would be run, without syncing. |
 | `sync:backups-clean` | Delete backup folders created by a backed-up pull. |
 | `sync:test-connection` | Test the SSH connection (and root path) for a remote. |
+| `sync:doctor` | Check that rsync and SSH access are ready for a real sync. |
 
 | Option | Description |
 | --- | --- |
 | `-O`, `--option=*` | Override the default rsync options. Repeatable. |
 | `-D`, `--dry` | Perform a dry run, with real-time output. On `sync:backups-clean`, preview which backups would be deleted. |
-| `-A`, `--all` | Sync every configured recipe. On `sync:backups-clean`, delete every backup. |
+| `-A`, `--all` | Sync every configured recipe. On `sync:backups-clean`, delete every backup. On `sync:doctor`, check every configured remote. |
 | `-B`, `--backup` | Back up local files to `backup_dir` before a real pull. |
 | `-F`, `--force` | `sync:backups-clean` only. Skip the confirmation prompt. |
 | `-K`, `--keep=` | `sync:backups-clean` only. Keep the N newest backups, deleting the rest. |
@@ -258,6 +260,17 @@ syncing anything — useful for catching a misconfigured remote (or a broken SSH
 partway through with an opaque `rsync` error. A local remote (no `user`/`host`) reports success immediately,
 without opening any connection.
 
+### Checking Readiness
+
+`sync:doctor` checks that a real sync would actually work, reporting the results in a table: that `rsync` is
+installed locally, and — for each remote checked — that the SSH connection and `root` path succeed (the same
+check `sync:test-connection` runs) and that `rsync` is installed on the remote too. Pass a remote name, or
+omit it to pick one interactively; pass `--all` to check every configured remote at once. A local remote (no
+`user`/`host`) skips the SSH checks entirely, since there's no connection to test.
+
+Each SSH round trip is bounded to 10 seconds, reported as a distinct timeout failure rather than hanging.
+Exits with a failure code if any check fails, so it's safe to use as a pre-deploy or CI gate.
+
 ## Examples
 
 ```bash
@@ -282,6 +295,12 @@ php artisan sync:commands pull staging assets
 
 # Check the SSH connection and root path for a remote before syncing
 php artisan sync:test-connection staging
+
+# Check that rsync and SSH access are ready for a real sync
+php artisan sync:doctor staging
+
+# Check every configured remote at once, e.g. as a CI/pre-deploy gate
+php artisan sync:doctor --all --no-interaction
 
 # Fully interactive
 php artisan sync
