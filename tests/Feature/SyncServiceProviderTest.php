@@ -5,12 +5,12 @@ declare(strict_types=1);
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
-use MarcoRieser\Sync\Commands\SyncCommand;
-use MarcoRieser\Sync\Commands\SyncCommandsCommand;
-use MarcoRieser\Sync\Commands\SyncListCommand;
-use MarcoRieser\Sync\Commands\SyncTestConnectionCommand;
-use MarcoRieser\Sync\Sync;
-use MarcoRieser\Sync\SyncServiceProvider as PackageServiceProvider;
+use Vitamin2\Sync\Commands\SyncCommand;
+use Vitamin2\Sync\Commands\SyncCommandsCommand;
+use Vitamin2\Sync\Commands\SyncListCommand;
+use Vitamin2\Sync\Commands\SyncTestConnectionCommand;
+use Vitamin2\Sync\Sync;
+use Vitamin2\Sync\SyncServiceProvider as PackageServiceProvider;
 
 it('merges the package config', function () {
     expect(config('sync.options'))->toBe(['--archive'])

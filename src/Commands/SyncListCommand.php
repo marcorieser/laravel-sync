@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Commands;
+namespace Vitamin2\Sync\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Support\Arrayable;
-use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
-use MarcoRieser\Sync\PendingSync;
+use Vitamin2\Sync\Commands\Concerns\ResolvesSyncInput;
+use Vitamin2\Sync\PendingSync;
 
 use function Laravel\Prompts\table;
 

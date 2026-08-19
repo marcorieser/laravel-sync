@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Data;
+namespace Vitamin2\Sync\Data;
 
 use DateTimeImmutable;
 use Illuminate\Support\Carbon;

@@ -4,17 +4,17 @@ description: >
   Configure and use the Laravel Sync package to sync files and folders between environments via rsync.
 license: MIT
 metadata:
-  author: Marco Rieser
+  author: VITAMIN 2
 ---
 
 # Laravel Sync
 
-Use this skill when a Laravel application needs to install or use the `marcorieser/laravel-sync` package to
+Use this skill when a Laravel application needs to install or use the `vitamin2/laravel-sync` package to
 push or pull files and folders between environments (e.g. local, staging, production) over `rsync`+`ssh`.
 
 ## Primary Goal
 
-- apply the `marcorieser/laravel-sync` package's public API (config, `sync`, `sync:list`, `sync:commands`, `sync:backups-clean`, `sync:test-connection`) in the smallest correct way
+- apply the `vitamin2/laravel-sync` package's public API (config, `sync`, `sync:list`, `sync:commands`, `sync:backups-clean`, `sync:test-connection`) in the smallest correct way
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ push or pull files and folders between environments (e.g. local, staging, produc
 ### 1. Install and publish the config
 
 ```bash
-composer require marcorieser/laravel-sync
+composer require vitamin2/laravel-sync
 php artisan vendor:publish --tag="laravel-sync-config"
 ```
 

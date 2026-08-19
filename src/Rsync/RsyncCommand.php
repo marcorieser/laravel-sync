@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Rsync;
+namespace Vitamin2\Sync\Rsync;
 
 use Illuminate\Contracts\Support\Arrayable;
-use MarcoRieser\Sync\Data\Remote;
-use MarcoRieser\Sync\Enums\Operation;
 use Stringable;
+use Vitamin2\Sync\Data\Remote;
+use Vitamin2\Sync\Enums\Operation;
 
 /**
  * @implements Arrayable<string, string>

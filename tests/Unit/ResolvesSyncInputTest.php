@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use MarcoRieser\Sync\Commands\SyncCommand;
+use Vitamin2\Sync\Commands\SyncCommand;
 
 /**
  * `defaultOptionsForPrompt()` is private, and the multiselect prompt it feeds is

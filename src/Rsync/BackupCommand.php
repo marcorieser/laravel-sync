@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Rsync;
+namespace Vitamin2\Sync\Rsync;
 
 use Illuminate\Contracts\Support\Arrayable;
-use MarcoRieser\Sync\Data\Backup;
 use Stringable;
+use Vitamin2\Sync\Data\Backup;
 
 /**
  * A local copy of one recipe path into a timestamped backup folder, run before a real

@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
-use MarcoRieser\Sync\Data\BackupFolder;
-use MarcoRieser\Sync\Sync;
+use Vitamin2\Sync\Data\BackupFolder;
+use Vitamin2\Sync\Sync;
 
 beforeEach(function () {
     // Unique per test (even under `pest --parallel`, which shares one Testbench

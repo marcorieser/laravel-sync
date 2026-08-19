@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Commands;
+namespace Vitamin2\Sync\Commands;
 
 use Illuminate\Console\Command;
-use MarcoRieser\Sync\Commands\Concerns\ConfirmsUnlessSkipped;
-use MarcoRieser\Sync\Commands\Concerns\ResolvesSyncInput;
-use MarcoRieser\Sync\Data\Backup;
-use MarcoRieser\Sync\Data\Recipe;
-use MarcoRieser\Sync\Enums\Operation;
-use MarcoRieser\Sync\PendingSync;
+use Vitamin2\Sync\Commands\Concerns\ConfirmsUnlessSkipped;
+use Vitamin2\Sync\Commands\Concerns\ResolvesSyncInput;
+use Vitamin2\Sync\Data\Backup;
+use Vitamin2\Sync\Data\Recipe;
+use Vitamin2\Sync\Enums\Operation;
+use Vitamin2\Sync\PendingSync;
 
 use function Laravel\Prompts\confirm;
 

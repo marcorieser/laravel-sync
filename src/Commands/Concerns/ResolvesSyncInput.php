@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Commands\Concerns;
+namespace Vitamin2\Sync\Commands\Concerns;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
-use MarcoRieser\Sync\Data\Backup;
-use MarcoRieser\Sync\Data\Recipe;
-use MarcoRieser\Sync\Enums\Operation;
-use MarcoRieser\Sync\Exceptions\SyncException;
-use MarcoRieser\Sync\PendingSync;
-use MarcoRieser\Sync\Rsync\RsyncOptions;
-use MarcoRieser\Sync\Sync;
 use Symfony\Component\Console\Output\OutputInterface;
 use ValueError;
+use Vitamin2\Sync\Data\Backup;
+use Vitamin2\Sync\Data\Recipe;
+use Vitamin2\Sync\Enums\Operation;
+use Vitamin2\Sync\Exceptions\SyncException;
+use Vitamin2\Sync\PendingSync;
+use Vitamin2\Sync\Rsync\RsyncOptions;
+use Vitamin2\Sync\Sync;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;

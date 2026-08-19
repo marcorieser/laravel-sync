@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Commands\Concerns;
+namespace Vitamin2\Sync\Commands\Concerns;
 
 use Closure;
 use Illuminate\Console\Command;
-use MarcoRieser\Sync\Data\Remote;
-use MarcoRieser\Sync\Exceptions\SyncException;
-use MarcoRieser\Sync\Sync;
+use Vitamin2\Sync\Data\Remote;
+use Vitamin2\Sync\Exceptions\SyncException;
+use Vitamin2\Sync\Sync;
 
 use function Laravel\Prompts\select;
 

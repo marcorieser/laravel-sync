@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Process;
-use MarcoRieser\Sync\Rsync\RsyncOptions;
+use Vitamin2\Sync\Rsync\RsyncOptions;
 
 beforeEach(function () {
     Process::fake();

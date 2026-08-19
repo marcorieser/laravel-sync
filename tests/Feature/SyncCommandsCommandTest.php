@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Date;
-use MarcoRieser\Sync\Rsync\RsyncOptions;
+use Vitamin2\Sync\Rsync\RsyncOptions;
 
 beforeEach(function () {
     config([

@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync;
+namespace Vitamin2\Sync;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
-use MarcoRieser\Sync\Data\Backup;
-use MarcoRieser\Sync\Data\BackupFolder;
-use MarcoRieser\Sync\Data\Recipe;
-use MarcoRieser\Sync\Data\Remote;
-use MarcoRieser\Sync\Enums\Operation;
-use MarcoRieser\Sync\Exceptions\SyncException;
-use MarcoRieser\Sync\Rsync\RsyncOptions;
+use Vitamin2\Sync\Data\Backup;
+use Vitamin2\Sync\Data\BackupFolder;
+use Vitamin2\Sync\Data\Recipe;
+use Vitamin2\Sync\Data\Remote;
+use Vitamin2\Sync\Enums\Operation;
+use Vitamin2\Sync\Exceptions\SyncException;
+use Vitamin2\Sync\Rsync\RsyncOptions;
 
 class Sync
 {

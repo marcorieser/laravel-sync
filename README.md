@@ -3,11 +3,11 @@
 </div>
 
 <p align="center">
-    <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://img.shields.io/packagist/v/marcorieser/laravel-sync.svg?style=flat-square" alt="Packagist"></a>
-    <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://img.shields.io/packagist/dependency-v/marcorieser/laravel-sync/php.svg?style=flat-square" alt="PHP from Packagist"></a>
-    <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://badge.laravel.cloud/badge/marcorieser/laravel-sync?style=flat" alt="Laravel versions"></a>
-    <a href="https://github.com/marcorieser/laravel-sync/actions"><img alt="GitHub Workflow Status (main)" src="https://img.shields.io/github/actions/workflow/status/marcorieser/laravel-sync/tests.yml?branch=main&label=Tests&style=flat-square"></a>
-    <a href="https://packagist.org/packages/marcorieser/laravel-sync"><img src="https://img.shields.io/packagist/dt/marcorieser/laravel-sync.svg?style=flat-square" alt="Total Downloads"></a>
+    <a href="https://packagist.org/packages/vitamin2/laravel-sync"><img src="https://img.shields.io/packagist/v/vitamin2/laravel-sync.svg?style=flat-square" alt="Packagist"></a>
+    <a href="https://packagist.org/packages/vitamin2/laravel-sync"><img src="https://img.shields.io/packagist/dependency-v/vitamin2/laravel-sync/php.svg?style=flat-square" alt="PHP from Packagist"></a>
+    <a href="https://packagist.org/packages/vitamin2/laravel-sync"><img src="https://badge.laravel.cloud/badge/vitamin2/laravel-sync?style=flat" alt="Laravel versions"></a>
+    <a href="https://github.com/vitamin2ag/laravel-sync/actions"><img alt="GitHub Workflow Status (main)" src="https://img.shields.io/github/actions/workflow/status/vitamin2ag/laravel-sync/tests.yml?branch=main&label=Tests&style=flat-square"></a>
+    <a href="https://packagist.org/packages/vitamin2/laravel-sync"><img src="https://img.shields.io/packagist/dt/vitamin2/laravel-sync.svg?style=flat-square" alt="Total Downloads"></a>
 </p>
 
 A git-like artisan command to easily sync files and folders between environments via `rsync`.
@@ -36,7 +36,7 @@ A git-like artisan command to easily sync files and folders between environments
 ## Quick Start
 
 ```bash
-composer require marcorieser/laravel-sync
+composer require vitamin2/laravel-sync
 php artisan vendor:publish --tag="laravel-sync-config"
 ```
 
@@ -82,7 +82,7 @@ Every config key is explained below in [Configuration](#configuration), and ever
 You can install the package via Composer:
 
 ```bash
-composer require marcorieser/laravel-sync
+composer require vitamin2/laravel-sync
 ```
 
 Publish the config file:
@@ -313,7 +313,7 @@ Please review [our security policy](.github/SECURITY.md) on how to report securi
 
 ## Credits
 
-- [Marco Rieser](https://github.com/marcorieser)
+- [VITAMIN 2](https://vitamin2.ch)
 - [All Contributors](../../contributors)
 
 ## License

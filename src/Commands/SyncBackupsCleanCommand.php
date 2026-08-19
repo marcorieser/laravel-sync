@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Commands;
+namespace Vitamin2\Sync\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
-use MarcoRieser\Sync\Commands\Concerns\ConfirmsUnlessSkipped;
-use MarcoRieser\Sync\Data\BackupFolder;
-use MarcoRieser\Sync\Exceptions\SyncException;
-use MarcoRieser\Sync\Sync;
+use Vitamin2\Sync\Commands\Concerns\ConfirmsUnlessSkipped;
+use Vitamin2\Sync\Data\BackupFolder;
+use Vitamin2\Sync\Exceptions\SyncException;
+use Vitamin2\Sync\Sync;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;

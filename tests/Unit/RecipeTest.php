@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use MarcoRieser\Sync\Data\Recipe;
+use Vitamin2\Sync\Data\Recipe;
 
 it('hydrates a name and its paths', function () {
     $recipe = Recipe::fromArray('assets', ['storage/app/assets/', 'storage/app/img/']);

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Ssh;
+namespace Vitamin2\Sync\Ssh;
 
-use MarcoRieser\Sync\Data\Remote;
 use Stringable;
+use Vitamin2\Sync\Data\Remote;
 
 /**
  * An `ssh` connectivity check for `sync:test-connection` — authenticates and confirms

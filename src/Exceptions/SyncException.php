@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MarcoRieser\Sync\Exceptions;
+namespace Vitamin2\Sync\Exceptions;
 
 use RuntimeException;
 use ValueError;
