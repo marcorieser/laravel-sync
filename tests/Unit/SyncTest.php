@@ -590,3 +590,30 @@ it('gets independent locks for different remotes', function () {
     File::delete($lockA->path);
     File::delete($lockB->path);
 });
+
+it('gets the same lock for two remotes whose root differs only by a duplicate slash', function () {
+    // Remote::path() collapses duplicate slashes before building the actual rsync
+    // target, so "/root" and "/root//nested" vs "/root/nested" resolve to the same
+    // physical path on disk — the lock key must collapse them the same way, or two
+    // config aliases like this would silently bypass the concurrency guard entirely.
+    $root = base_path('storage/app/lock-test-'.Str::random(8));
+
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        'alias-plain' => ['root' => "{$root}/nested"],
+        'alias-doubled' => ['root' => "{$root}//nested"],
+    ])]);
+
+    $sync = resolve(Sync::class);
+
+    $plain = $sync->lock($sync->remote('alias-plain'));
+    $doubled = $sync->lock($sync->remote('alias-doubled'));
+
+    expect($doubled->path)->toBe($plain->path);
+
+    expect($plain->acquire())->toBeTrue();
+    expect($doubled->acquire())->toBeFalse();
+
+    $plain->release();
+
+    File::delete($plain->path);
+});

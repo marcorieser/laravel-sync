@@ -458,6 +458,11 @@ class Sync
      * treats case-insensitively, or a local `root` on a case-insensitive filesystem like
      * macOS/Windows) would hash to different lock files and silently defeat the alias
      * dedup this method exists for.
+     *
+     * Duplicate slashes in `root` are also collapsed before hashing, the same way
+     * `Remote::path()` collapses them before building the actual rsync target — without
+     * that, a `root` of `/srv/app` and one of `/srv//app` would hash to different lock
+     * files despite `Remote::path()` resolving both to the exact same rsync path.
      */
     public function lock(Remote $remote): SyncLock
     {
@@ -465,7 +470,9 @@ class Sync
             ? $remote->root
             : sprintf('%s:%d%s', $remote->host, $remote->port, $remote->root);
 
-        return new SyncLock(storage_path('framework/cache/sync-locks/'.hash('xxh128', $this->normalizePath($identity)).'.lock'));
+        $identity = preg_replace('#/+#', '/', $this->normalizePath($identity)) ?? $identity;
+
+        return new SyncLock(storage_path('framework/cache/sync-locks/'.hash('xxh128', $identity).'.lock'));
     }
 
     /**
