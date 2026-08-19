@@ -21,6 +21,7 @@ Comments serve both humans and AI agents reading this code later. Both need the 
 - **Budget: keep the comment shorter than the code it describes.** A 25-line docblock over a 7-line method means the reasoning belongs in the PR description, not inline. Aim for 1–3 lines; a class-level docblock covering a real design decision may run longer.
 - **State conclusions, not the reasoning chain.** Write the constraint that holds, not the walk through why it holds.
 - **Skip meta-commentary.** Notes about what the comment itself avoids saying, or which method "owns" a detail, help nobody.
+- **Delete framework stub docblocks.** `make:command` and `make:provider` emit `The command signature.`, `Execute the console command.`, `Register any application services.` and the like. They restate the symbol name — strip them from generated classes rather than leaving them in.
 
 Test comments follow the same rules: explain a non-obvious setup technique or a real constraint (parallel workers sharing state, why a fixture is shaped oddly), not what the assertions plainly say.
 
