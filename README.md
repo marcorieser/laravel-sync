@@ -258,6 +258,13 @@ syncing anything — useful for catching a misconfigured remote (or a broken SSH
 partway through with an opaque `rsync` error. A local remote (no `user`/`host`) reports success immediately,
 without opening any connection.
 
+### Concurrency
+
+`sync` guards against two runs against the same remote overlapping — a cron job and a human, or two humans,
+running `sync` against the same remote at once. The second run fails immediately with a friendly error instead
+of racing the first. There's nothing to configure: the guard is automatic, and always releases once the run
+finishes (success, failure, or an aborted confirmation).
+
 ## Examples
 
 ```bash
