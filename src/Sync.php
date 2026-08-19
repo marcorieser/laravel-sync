@@ -6,6 +6,7 @@ namespace Vitamin2\Sync;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
+use Vitamin2\Sync\Concurrency\SyncLock;
 use Vitamin2\Sync\Data\Backup;
 use Vitamin2\Sync\Data\BackupFolder;
 use Vitamin2\Sync\Data\Recipe;
@@ -52,10 +53,8 @@ class Sync
                 throw SyncException::noRecipesConfigured();
             }
 
-            // Read as a whole array and indexed into by literal key, not
-            // `config("sync.excludes.{$name}")`: a recipe name containing a "." (e.g.
-            // "assets.images") would otherwise be misread by `config()`'s own
-            // dot-notation as a nested path instead of the literal key.
+            // Indexed by literal key, not `config("sync.excludes.{$name}")`: a recipe name
+            // containing a "." would be misread by `config()`'s dot-notation.
             /** @var array<string, array<int, string>> $excludes */
             $excludes = config('sync.excludes', []);
 
@@ -90,15 +89,11 @@ class Sync
     }
 
     /**
-     * Start a backup for the given recipes, guarding both that `backup_dir` is safe to
-     * write into and that it doesn't nest inside a recipe path — the single place a
-     * `Backup` gets created from config, so neither guard can be skipped by a caller
-     * forgetting to run it separately.
+     * Start a backup for the given recipes.
      *
-     * Built from `guardBackupDirSafe()`'s returned, dot-collapsed directory rather than
-     * the raw configured string, so the `Backup` this produces — and everything that
-     * later reads `$backup->dir` (e.g. `BackupCommand::target()`) — agrees with exactly
-     * what was validated as safe.
+     * The single place a `Backup` is created from config, so neither guard can be skipped.
+     * Built from `guardBackupDirSafe()`'s dot-collapsed return value, not the raw
+     * configured string, so `$backup->dir` matches exactly what was validated.
      *
      * @param  Collection<int, Recipe>  $recipes
      */
@@ -121,34 +116,18 @@ class Sync
      */
     public function backups(): Collection
     {
-        // The dot-collapsed directory `guardBackupDirSafe()` returns, not the raw
-        // configured string: a redundant ".." through a not-yet-existing intermediate
-        // directory (e.g. "storage/tmp/../.sync-backups") would still be validated as
-        // safe, but the raw string handed to `glob()` below would then need
-        // "storage/tmp" to actually exist to resolve through it — silently finding
-        // nothing even though the (collapsed) directory the guard approved is real.
+        // The dot-collapsed directory, not the raw configured string: a ".." through a
+        // not-yet-existing intermediate would validate as safe but resolve to nothing here.
         $dir = base_path($this->guardBackupDirSafe($this->backupDir()));
 
-        // `glob()`, not `File::isDirectory()` + `File::directories()`: that two-step
-        // check-then-act pair races if the directory is removed in between (by another
-        // process, or a concurrent `sync:backups-clean` run) — Laravel's Finder-backed
-        // `directories()` throws on a now-missing directory. `glob()` is a single call
-        // that never throws, returning an empty list either way.
-        //
-        // `$dir` itself is escaped (only the trailing "/*" is left as an actual
-        // wildcard): a configured `backup_dir` containing a glob metacharacter (e.g.
-        // "backups*") would otherwise widen the pattern to match sibling directories
-        // too, and `--all` would delete timestamp-named folders outside `backup_dir`.
+        // `glob()`, not `File::isDirectory()` + `File::directories()`: that check-then-act
+        // pair races a concurrent `sync:backups-clean`, and Finder-backed `directories()`
+        // throws on a now-missing directory. `$dir` is escaped so a `backup_dir` containing
+        // a glob metacharacter can't widen the pattern onto sibling directories.
         $directories = glob($this->escapeGlobPattern($dir).'/*', GLOB_ONLYDIR) ?: [];
 
-        // Excludes symlinks even though `GLOB_ONLYDIR` (and thus `is_dir()`) follows
-        // them: a symlinked entry here would let `sync:backups-clean` hand
-        // `File::deleteDirectory()` a path whose *contents* live outside `backup_dir`,
-        // silently wiping whatever the link points at instead of a real backup folder.
-        //
-        // `tryFromPath()`, not a separate validity check followed by `fromPath()`: both
-        // would parse the folder name against `Backup::FORMAT`, so checking validity
-        // and hydrating separately would parse every real backup folder's name twice.
+        // Rejects symlinks even though `GLOB_ONLYDIR` follows them: a symlinked entry would
+        // let `sync:backups-clean` delete contents living outside `backup_dir`.
         return collect($directories)
             ->reject(fn (string $path) => is_link($path))
             ->map(fn (string $path) => BackupFolder::tryFromPath($path, fn () => $this->directorySize($path)))
@@ -160,18 +139,12 @@ class Sync
     /**
      * Delete a single backup folder from disk, reporting whether it actually succeeded.
      *
-     * Re-checks `is_link()` immediately before deleting, even though `backups()` already
-     * excludes symlinks when listing: `sync:backups-clean`'s interactive flow runs a
-     * `multiselect()` and a `confirm()` prompt — an arbitrarily long, user-paced window —
-     * between listing and this call, during which the folder could have been replaced by
-     * a symlink (a concurrent process, or a race). Without this, `File::deleteDirectory()`
-     * would follow it and delete the *target*'s contents instead of a real backup folder,
-     * the exact class of bug the listing-time filter exists to prevent.
+     * Re-checks `is_link()` despite `backups()` already filtering symlinks: the interactive
+     * prompts in `sync:backups-clean` leave a user-paced window in which the folder could
+     * be swapped for a symlink, which `File::deleteDirectory()` would follow.
      *
-     * `File::deleteDirectory()`'s own return value isn't trustworthy: it reports success
-     * once the top-level directory existed, even when an individual file inside failed to
-     * delete (in which case the directory itself survives, non-empty) — checking the
-     * directory is actually gone afterward is the only reliable signal.
+     * Its return value isn't trustworthy either — it reports success whenever the top-level
+     * directory existed, even if files inside failed to delete. Only re-checking is reliable.
      */
     public function deleteBackup(BackupFolder $folder): bool
     {
@@ -185,13 +158,10 @@ class Sync
     }
 
     /**
-     * Select backups by retention criteria: older than `$olderThan` days (if given),
-     * excluding the `$keep` newest (if given) — so the two combine into the common
-     * "delete anything old, but never touch the N most recent" rotation, and `--keep`
-     * alone still works as a plain backup-count cap.
+     * Older than `$olderThan` days, excluding the `$keep` newest — combining into the
+     * usual "delete anything old, but never the N most recent" rotation.
      *
-     * `$backups` must already be sorted newest-first (as `backups()` returns them), so
-     * the N newest are simply its first N.
+     * `$backups` must already be sorted newest-first, as `backups()` returns it.
      *
      * @param  Collection<int, BackupFolder>  $backups
      * @return Collection<int, BackupFolder>
@@ -215,25 +185,17 @@ class Sync
     /**
      * Guard against a `backup_dir` that would write or delete outside the project.
      *
-     * Takes the directory to check explicitly, rather than always reading
-     * `$this->backupDir()` itself — `prepare()` needs to validate a specific `Backup`'s
-     * own `dir`, which could differ from the currently configured value.
+     * Takes the directory explicitly rather than reading `$this->backupDir()`, since
+     * `prepare()` validates a specific `Backup`'s own `dir`.
      *
-     * First resolves the directory lexically (no filesystem access, so this works even
-     * before the directory exists) and refuses it when it's blank, absolute (a leading
-     * "/" or a Windows drive letter like "C:"), resolves to the project root itself, or
-     * ever steps above the root via a ".." segment. `backup_dir` is documented as
-     * relative to the project root, so the absolute case is refused explicitly — without
-     * it, a path like "/tmp" would have its leading slash silently dropped by the
-     * segment parser below and be misread as the relative path "tmp" instead of being
-     * rejected. Then, if the directory (or one of its parents) already exists, resolves
-     * it for real and refuses it if a symlink leads outside the project (or straight at
-     * the project root) — the lexical check alone can't catch a `backup_dir` that looks
-     * like a normal, contained relative path but is actually a symlink to somewhere else.
+     * Checks lexically first (no filesystem access, so it works before the directory
+     * exists), refusing blank, absolute, root-resolving, or root-escaping paths. Absolute
+     * is refused explicitly because the segment parser would otherwise drop the leading
+     * "/" and misread "/tmp" as relative "tmp". Then, if the directory or a parent exists,
+     * resolves symlinks and refuses one leading outside the project — a lexical check
+     * can't catch a contained-looking path that is really a symlink elsewhere.
      *
-     * Returns the dot-collapsed relative path it just validated, so a caller that goes
-     * on to actually read or write that directory uses exactly what was checked, not
-     * the raw (possibly ".."-laden) configured string.
+     * Returns the dot-collapsed path it validated, so callers use exactly what was checked.
      */
     public function guardBackupDirSafe(string $dir): string
     {
@@ -256,12 +218,8 @@ class Sync
 
     /**
      * Lexically collapse "." and ".." segments out of an already-`/`-normalized path,
-     * without touching the filesystem.
-     *
-     * Shared by `guardBackupDirSafe()` and `guardBackupNotNested()`, both of which
-     * reject the path outright if a ".." pops above where collapsing started —
-     * reported via `$escaped` — rather than trusting a caller to have run the other
-     * guard first.
+     * without touching the filesystem. `$escaped` reports a ".." that popped above where
+     * collapsing started, which every caller rejects outright.
      *
      * @return array{0: array<int, string>, 1: bool}
      */
@@ -299,31 +257,18 @@ class Sync
 
     /**
      * Resolve the nearest existing ancestor of the (lexically already-safe) backup
-     * directory and refuse it unless that real, symlink-resolved path is contained by
-     * the project root — rejecting a path that escapes the root entirely.
+     * directory and refuse it unless that symlink-resolved path sits inside the project
+     * root. The walk always terminates, since `$ancestor` starts under `base_path()`.
      *
-     * The upward walk is guaranteed to terminate: `$ancestor` starts as a subpath of
-     * `base_path()`, the running app's own root, so it's always reached at the latest.
-     * Unlike the walk itself, `realpath()` isn't trusted to succeed just because
-     * `file_exists()` did (a real TOCTOU window, e.g. a concurrent `sync:backups-clean`
-     * run) — failing to resolve either side is treated as unsafe, not skipped.
+     * `realpath()` is not trusted to succeed just because `file_exists()` did — a real
+     * TOCTOU window — so a failure on either side counts as unsafe.
      *
-     * Separately refuses the directory resolving to the project root itself — but only
-     * when the *full* configured directory already exists there (no walking up was
-     * needed): a `backup_dir` that simply hasn't been created yet naturally walks all
-     * the way up to the (always-existing) project root as its nearest ancestor, which
-     * is expected and safe, not the same as `backup_dir` itself being a symlink
-     * pointing straight at the root.
+     * Resolving to the project root is refused only when the full directory already
+     * exists there: a not-yet-created `backup_dir` legitimately walks up to the root.
      *
-     * Compares the two `realpath()` results case-sensitively (separators normalized,
-     * but NOT lowercased like `normalizePath()` does elsewhere in this class) — this is
-     * the one comparison in the class that resolves symlinks against real disk state to
-     * decide whether a path is safe, so folding case here would let a symlink into a
-     * case-differing sibling directory (a genuinely different directory on a
-     * case-sensitive filesystem, e.g. Linux) be misread as "inside" the project root.
-     * The other, non-disk-resolving comparisons in this class stay case-folded on
-     * purpose: they're not deciding filesystem safety, just matching a config-provided
-     * path against `base_path()`'s own formatting.
+     * Compares case-sensitively, deliberately unlike `normalizePath()` elsewhere in this
+     * class. This is the one comparison deciding filesystem safety from real disk state,
+     * so folding case would let a symlink into a case-differing sibling read as "inside".
      *
      * @param  array<int, string>  $segments
      */
@@ -349,10 +294,8 @@ class Sync
     }
 
     /**
-     * Normalize a `realpath()` result for the on-disk containment check: separators
-     * only, deliberately NOT case-folded (see `guardBackupDirNotEscapingRootOnDisk()`).
-     * A failed `realpath()` (`false`) normalizes to `null` rather than being treated as
-     * a literal path.
+     * Normalize a `realpath()` result: separators only, deliberately NOT case-folded (see
+     * `guardBackupDirNotEscapingRootOnDisk()`). A failed `realpath()` becomes `null`.
      */
     private function normalizeRealpath(string|false $path): ?string
     {
@@ -360,25 +303,16 @@ class Sync
     }
 
     /**
-     * Sum the size, in bytes, of every file (including hidden ones, e.g. a backed-up
-     * `.env`) under the given directory, recursing into subdirectories.
+     * Sum the size in bytes of every file under a directory, including hidden ones.
      *
-     * Walks the tree with `scandir()`, not `File::allFiles()`: the latter is
-     * Finder-backed and throws if the directory vanishes between being listed by
-     * `backups()` and being sized here — the same class of race `backups()` itself
-     * avoids by using `glob()` instead of `File::directories()`. Suppressed and
-     * defaulted to an empty list on failure, `scandir()` never throws either, so a
-     * vanished folder naturally sizes to 0 with no separate check needed. Unlike
-     * `glob()`, it also lists hidden entries and regular ones in a single pass (no
-     * "/*" + "/.*" pair needed) and never interprets `$path` as a pattern, so a
-     * backed-up file or directory containing a glob metacharacter in its own name
-     * (e.g. "report[final].csv" is a perfectly valid filename) can't widen it either.
+     * `scandir()`, not `File::allFiles()`: the latter is Finder-backed and throws if the
+     * directory vanishes between `backups()` listing it and this sizing it. Suppressed,
+     * `scandir()` never throws, so a vanished folder sizes to 0. It also lists hidden and
+     * regular entries in one pass and never treats `$path` as a glob pattern.
      *
-     * Never follows a symlinked entry: `rsync --archive` (how a backup is populated)
-     * preserves symlinks from the source tree verbatim, so a backup folder can contain
-     * one pointing back at an ancestor of itself — recursing into it would re-walk the
-     * same real directories over and over (inflating the reported size) until the
-     * built-up path finally exceeds the OS path-length limit.
+     * Never follows a symlinked entry: `rsync --archive` preserves symlinks verbatim, so a
+     * backup can contain one pointing at its own ancestor — recursing would loop until the
+     * path exceeds the OS length limit.
      */
     private function directorySize(string $path): int
     {
@@ -406,14 +340,10 @@ class Sync
     }
 
     /**
-     * Escape glob metacharacters ("*", "?", "[", "]") in a literal filesystem path, so
-     * it can be used as the fixed prefix of a `glob()` pattern without any of its own
-     * characters being reinterpreted as wildcards.
+     * Escape glob metacharacters in a literal path so it can prefix a `glob()` pattern.
      *
-     * Wraps each metacharacter in its own single-character bracket expression (e.g.
-     * "*" becomes "[*]") — the standard glob-quoting idiom, and one that works
-     * cross-platform: `glob()`'s other escaping mechanism (a literal backslash) is
-     * ambiguous with the path separator on Windows, but "[" and "]" never are.
+     * Wraps each in a single-character bracket expression ("*" becomes "[*]") rather than
+     * backslash-escaping, which is ambiguous with the Windows path separator.
      */
     private function escapeGlobPattern(string $path): string
     {
@@ -437,6 +367,34 @@ class Sync
     public function remote(string $name): Remote
     {
         return $this->remotes()->get($name) ?? throw SyncException::unknownRemote($name);
+    }
+
+    /**
+     * Get the concurrency guard for a remote.
+     *
+     * Keyed by the remote's physical target (`host:port` plus `root`, or just `root` when
+     * local) rather than its config name or SSH `user`, so aliased entries pointing at the
+     * same directory contend for the same lock — the race being guarded is two `rsync`
+     * processes writing one path, which `user` has no bearing on.
+     *
+     * The identity is canonicalized (dot segments, duplicate slashes, case) before hashing,
+     * so aliases differing only cosmetically still collide. Case-folding deliberately
+     * over-locks two case-differing paths on a case-sensitive filesystem rather than risk
+     * missing a real race on a case-insensitive one. `xxh128` because the arch preset
+     * rejects `md5` as a weak hash, though this is only a filename.
+     */
+    public function lock(Remote $remote): SyncLock
+    {
+        [$rootSegments] = $this->collapseDotSegments(str_replace('\\', '/', $remote->root));
+        $root = '/'.implode('/', $rootSegments);
+
+        $identity = $remote->isLocal()
+            ? $root
+            : sprintf('%s:%d%s', $remote->host, $remote->port, $root);
+
+        $identity = $this->normalizePath($identity);
+
+        return new SyncLock(storage_path('framework/cache/sync-locks/'.hash('xxh128', $identity).'.lock'));
     }
 
     /**
@@ -467,9 +425,8 @@ class Sync
     /**
      * Guard against pushing to a read-only remote.
      *
-     * Exposed separately (not just internally by `prepare()`) so a caller resolving its
-     * own input can fail fast before doing further work (e.g. prompting for recipes and
-     * options), without that caller having to bypass `prepare()`'s guard to do so.
+     * Public as well as called by `prepare()`, so a command can fail fast before
+     * prompting for recipes and options.
      */
     public function guardReadOnly(Operation $operation, Remote $remote): void
     {
@@ -501,15 +458,11 @@ class Sync
      * path being backed up — otherwise a pull's backup pass would copy the (growing)
      * backup folder into itself.
      *
-     * Compares `$backup->dir` dot-collapsed, not as the raw configured string: a
-     * redundant ".." segment (e.g. "storage/tmp/../app/assets/.sync-backups") resolves
-     * on disk to a path nested inside a recipe directory, but a plain string comparison
-     * against the uncollapsed literal wouldn't recognize it as such and would let it
-     * through.
+     * Compares dot-collapsed, not raw: a ".." segment can land inside a recipe directory
+     * that a plain string comparison against the literal wouldn't recognize.
      *
-     * Also refuses `$backup->dir` outright if it steps above the project root — public,
-     * like this method, so a caller isn't relying purely on convention (running
-     * `guardBackupDirSafe()` first) for that half of the safety check too.
+     * Also refuses a `dir` stepping above the project root, so a caller isn't relying on
+     * the convention of having run `guardBackupDirSafe()` first.
      *
      * @param  Collection<int, Recipe>  $recipes
      */
@@ -533,10 +486,8 @@ class Sync
     }
 
     /**
-     * Guard both that `backup_dir` is safe to write into and that it doesn't nest
-     * inside a recipe path, for a `Backup` `prepare()` didn't create itself (so it
-     * can't already trust `startBackup()`'s own guarding — a caller-supplied `Backup`
-     * might carry a dir `guardBackupDirSafe()` never validated at all).
+     * Run both backup-dir guards for a caller-supplied `Backup`, which — unlike one from
+     * `startBackup()` — may carry a dir that was never validated.
      *
      * @param  Collection<int, Recipe>  $recipes
      */
@@ -560,11 +511,9 @@ class Sync
     /**
      * Normalize a path for cross-platform, case-insensitive-filesystem-safe comparison.
      *
-     * On Windows, a local remote's `root` (typically `base_path()`) carries backslashes
-     * that `Remote::path()` doesn't normalize, only `base_path()` does — so any path
-     * compared against another needs normalizing first, not just one side. Case is
-     * folded too: macOS (APFS) and Windows (NTFS) are case-insensitive by default, so
-     * two paths differing only by case can be the same directory on disk.
+     * Both sides need it: on Windows a local remote's `root` carries backslashes that
+     * `Remote::path()` doesn't normalize. Case is folded because macOS and Windows are
+     * case-insensitive by default, so two paths differing only by case are one directory.
      */
     private function normalizePath(string $path): string
     {

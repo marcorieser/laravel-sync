@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/vitamin2ag/laravel-sync/compare/v0.3.0...HEAD)
 
+- Add a concurrency guard: `sync` refuses to run when another `sync` is already in progress for the same remote
+
 ## [v0.3.0](https://github.com/vitamin2ag/laravel-sync/compare/v0.2.0...v0.3.0) - 2026-08-19
 
 - Add `sync:backups-clean` Artisan command to delete backup folders (interactive picker, `--all`, `--dry`, `--force`, `--keep=`, `--older-than=`)

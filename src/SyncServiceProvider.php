@@ -14,9 +14,6 @@ use Vitamin2\Sync\Commands\SyncTestConnectionCommand;
 
 class SyncServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     #[Override]
     public function register(): void
     {
@@ -25,9 +22,6 @@ class SyncServiceProvider extends ServiceProvider
         $this->app->singleton(Sync::class);
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         if (! $this->app->runningInConsole()) {

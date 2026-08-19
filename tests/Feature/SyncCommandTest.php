@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Str;
 use Vitamin2\Sync\Rsync\RsyncOptions;
+use Vitamin2\Sync\Sync;
 
 beforeEach(function () {
     Process::fake();
@@ -319,4 +322,41 @@ it('excludes output-producing options from the prompt when -v is passed, since -
 
     // "--progress" still ends up on the actual rsync command, forced on by -v.
     Process::assertRan(fn ($process) => in_array('--progress', $process->command, true));
+});
+
+it('refuses to run when another sync is already in progress for the same remote', function () {
+    // Unique root, not "staging": lock files are keyed by root and live under the real
+    // storage_path(), shared across parallel test workers — a shared root would collide.
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        $name = 'locked-'.Str::random(8) => ['root' => base_path('storage/app/'.$name)],
+    ])]);
+
+    $remote = resolve(Sync::class)->remote($name);
+    $lock = resolve(Sync::class)->lock($remote);
+    $lock->acquire();
+
+    $this->artisan('sync', ['operation' => 'push', 'remote' => $name, 'recipe' => ['assets'], '--no-interaction' => true])
+        ->expectsOutputToContain(sprintf('Could not start a sync for "%s"', $name))
+        ->assertFailed();
+
+    Process::assertNothingRan();
+
+    $lock->release();
+    File::delete($lock->path);
+});
+
+it('releases the lock after a run, so a later sync against the same remote can proceed', function () {
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        $name = 'unlocked-'.Str::random(8) => ['root' => base_path('storage/app/'.$name)],
+    ])]);
+
+    $this->artisan('sync', ['operation' => 'push', 'remote' => $name, 'recipe' => ['assets'], '--no-interaction' => true])
+        ->assertSuccessful();
+
+    $lock = resolve(Sync::class)->lock(resolve(Sync::class)->remote($name));
+
+    expect($lock->acquire())->toBeTrue();
+
+    $lock->release();
+    File::delete($lock->path);
 });

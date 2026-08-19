@@ -335,11 +335,8 @@ it('does not follow a symlink when summing a backup folder\'s size', function ()
 });
 
 it('treats a glob metacharacter in backup_dir as a literal character, not a wildcard', function () {
-    // "*" and "?" are illegal in a filename on Windows, so this uses "[" / "]" — valid
-    // everywhere — to stay portable across the CI matrix. Left unescaped, glob() would
-    // read "[literal]" as a bracket expression (matching a single char from the set
-    // "l,i,t,e,r,a") instead of the literal 9-character folder name, and silently find
-    // nothing.
+    // "[" / "]" rather than "*" / "?", which are illegal in Windows filenames. Unescaped,
+    // glob() reads "[literal]" as a bracket expression and finds nothing.
     $dir = 'glob-test-'.Str::random(8).'[literal]';
 
     File::ensureDirectoryExists(base_path("{$dir}/2026-07-24_134530"));
@@ -356,10 +353,8 @@ it('treats a glob metacharacter in backup_dir as a literal character, not a wild
 it('finds backups even when a redundant ".." segment in backup_dir points through a directory that does not exist', function () {
     File::ensureDirectoryExists("{$this->backupPath}/2026-07-24_134530");
 
-    // "phantom-*" is never created on disk. The raw, uncollapsed string would need it
-    // to exist to resolve through its own "..", so this only finds anything if
-    // backups() reads from the dot-collapsed directory guardBackupDirSafe() validated,
-    // not the literal configured value.
+    // "phantom-*" never exists on disk, so the raw string can't resolve through its own
+    // "..". This finds anything only if backups() reads the dot-collapsed directory.
     $phantom = 'phantom-'.Str::random(8);
     config(['sync.backup_dir' => "{$phantom}/../{$this->backupDir}"]);
 
@@ -543,3 +538,96 @@ it('validates the given Backup\'s own dir, not just the currently configured bac
         $backup,
     );
 })->throws(SyncException::class);
+
+it('gets the same lock for the same remote', function () {
+    // Unique root, not "staging": lock files are keyed by root (not config name) and live
+    // under the real storage_path(), shared across parallel test workers.
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        $name = 'lock-test-'.Str::random(8) => ['root' => base_path('storage/app/'.$name)],
+    ])]);
+
+    $sync = resolve(Sync::class);
+    $remote = $sync->remote($name);
+
+    $first = $sync->lock($remote);
+    expect($first->acquire())->toBeTrue();
+
+    $second = $sync->lock($remote);
+    expect($second->acquire())->toBeFalse();
+
+    $first->release();
+
+    File::delete($first->path);
+});
+
+it('gets independent locks for different remotes', function () {
+    // Roots must differ, not just names — the lock key ignores the config name.
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        $nameA = 'lock-test-a-'.Str::random(8) => ['root' => base_path('storage/app/'.$nameA)],
+        $nameB = 'lock-test-b-'.Str::random(8) => ['root' => base_path('storage/app/'.$nameB)],
+    ])]);
+
+    $sync = resolve(Sync::class);
+
+    $lockA = $sync->lock($sync->remote($nameA));
+    $lockB = $sync->lock($sync->remote($nameB));
+
+    expect($lockA->acquire())->toBeTrue();
+    expect($lockB->acquire())->toBeTrue();
+
+    $lockA->release();
+    $lockB->release();
+
+    File::delete($lockA->path);
+    File::delete($lockB->path);
+});
+
+it('gets the same lock for two remotes whose root differs only by a duplicate slash', function () {
+    // Remote::path() collapses duplicate slashes, so these two roots reach the same rsync
+    // target — the lock key must collapse them too, or the aliases bypass the guard.
+    $root = base_path('storage/app/lock-test-'.Str::random(8));
+
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        'alias-plain' => ['root' => "{$root}/nested"],
+        'alias-doubled' => ['root' => "{$root}//nested"],
+    ])]);
+
+    $sync = resolve(Sync::class);
+
+    $plain = $sync->lock($sync->remote('alias-plain'));
+    $doubled = $sync->lock($sync->remote('alias-doubled'));
+
+    expect($doubled->path)->toBe($plain->path);
+
+    expect($plain->acquire())->toBeTrue();
+    expect($doubled->acquire())->toBeFalse();
+
+    $plain->release();
+
+    File::delete($plain->path);
+});
+
+it('gets the same lock for two remotes whose root differs only by a redundant dot segment', function () {
+    // These two roots resolve to the same directory on disk even though Remote::path()
+    // never collapses ".." itself — the lock key must still see them as one target.
+    $root = base_path('storage/app/lock-test-'.Str::random(8));
+
+    config(['sync.remotes' => array_merge(config('sync.remotes'), [
+        'alias-plain' => ['root' => "{$root}/nested"],
+        'alias-dotted' => ['root' => "{$root}/tmp/../nested"],
+    ])]);
+
+    $sync = resolve(Sync::class);
+
+    $plain = $sync->lock($sync->remote('alias-plain'));
+    $dotted = $sync->lock($sync->remote('alias-dotted'));
+
+    expect($dotted->path)->toBe($plain->path);
+
+    expect($plain->acquire())->toBeTrue();
+    expect($dotted->acquire())->toBeFalse();
+
+    $plain->release();
+
+    File::delete($plain->path);
+});

@@ -11,6 +11,20 @@ This repository is a Laravel package. Keep the package focused, idiomatic, and e
 - Keep tests focused on observable package behavior through public APIs, service provider wiring, commands, routes, published resources, and documentation promises.
 - When matching another package's public surface for compatibility (e.g. config shape, CLI flags), treat that package as a feature spec only — read it for behavior, don't port its internal implementation or tests verbatim. Design this package's own idiomatic architecture (typed DTOs, enums, Pest tests) even when the public surface must match exactly.
 
+## Comments
+
+Comments serve both humans and AI agents reading this code later. Both need the same thing: context that isn't recoverable from the code itself. Neither needs the code restated in prose.
+
+- **Comment the why, never the what.** If a reader gets it from the signature and body, don't write it. `// Release the lock` above `$lock->release()` is noise.
+- **Earn the line.** A comment justifies itself when it prevents a wrong edit: a deliberate choice that looks like a mistake, a non-obvious constraint, a footgun in a dependency, a race the code is dodging. If nobody would plausibly "fix" the code, it needs no defense.
+- **Don't narrate rejected alternatives** unless the alternative is the obvious thing to reach for and is wrong here. One clause, not a paragraph: "not `File::ensureDirectoryExists()` — it throws when two processes race the same mkdir".
+- **Budget: keep the comment shorter than the code it describes.** A 25-line docblock over a 7-line method means the reasoning belongs in the PR description, not inline. Aim for 1–3 lines; a class-level docblock covering a real design decision may run longer.
+- **State conclusions, not the reasoning chain.** Write the constraint that holds, not the walk through why it holds.
+- **Skip meta-commentary.** Notes about what the comment itself avoids saying, or which method "owns" a detail, help nobody.
+- **Delete framework stub docblocks.** `make:command` and `make:provider` emit `The command signature.`, `Execute the console command.`, `Register any application services.` and the like. They restate the symbol name — strip them from generated classes rather than leaving them in.
+
+Test comments follow the same rules: explain a non-obvious setup technique or a real constraint (parallel workers sharing state, why a fixture is shaped oddly), not what the assertions plainly say.
+
 ## Architecture & Decisions
 
 - **Config-compatible with `aerni/sync`:** same config shape (`config/sync.php`, keys `remotes`/`recipes`/`options`, per-remote `user`/`host`/`root`/`port`/`read_only`) and same command surface (`sync`, `sync:list`, `sync:commands` with `-O/--option`, `-D/--dry`, `-A/--all`) — implementation is from-scratch, not a port. Composer package name (`vitamin2/laravel-sync`) and PHP namespace (`Vitamin2\Sync\`) stay as-is; don't rename without asking first.

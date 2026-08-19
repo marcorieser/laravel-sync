@@ -17,9 +17,8 @@ use Vitamin2\Sync\Data\Backup;
 final readonly class BackupCommand implements Arrayable, Stringable
 {
     /**
-     * Fixed, not user-overridable: `--archive` for a faithful copy (permissions,
-     * timestamps, symlinks, ...), `--relative` to recreate the path's directory
-     * structure (and create intermediate dirs) under the backup folder.
+     * Fixed, not user-overridable: `--archive` for a faithful copy, `--relative` to recreate
+     * the path's directory structure under the backup folder.
      */
     private const array OPTIONS = ['--archive', '--relative'];
 
@@ -29,15 +28,11 @@ final readonly class BackupCommand implements Arrayable, Stringable
     ) {}
 
     /**
-     * Get the source path, relative to the project root, so `--relative` recreates
-     * only the recipe path (not the whole absolute source path) under the backup
-     * folder — this only works when the process itself runs with the project root
-     * as its working directory (see `PendingSync::run()`).
+     * The source path, kept relative so `--relative` recreates only the recipe path under
+     * the backup folder. Requires the process to run from the project root (`PendingSync::run()`).
      *
-     * A `/./` anchor in the absolute path would do the same on GNU rsync, but macOS's
-     * bundled `rsync` (openrsync, not GNU rsync) doesn't honor that anchor and
-     * replicates the full absolute path instead — a relative path plus a matching
-     * working directory is the one form both implementations agree on.
+     * Not the `/./` anchor on an absolute path: macOS's bundled openrsync ignores it and
+     * replicates the full absolute path, while relative-plus-working-directory works on both.
      */
     public function origin(): string
     {
@@ -45,7 +40,7 @@ final readonly class BackupCommand implements Arrayable, Stringable
     }
 
     /**
-     * Get the destination folder for this backup run.
+     * The timestamped destination folder for this backup run.
      */
     public function target(): string
     {
@@ -62,8 +57,7 @@ final readonly class BackupCommand implements Arrayable, Stringable
     }
 
     /**
-     * The working directory this command must run from, so its relative `origin()`
-     * resolves against the project root.
+     * The working directory this command must run from, so its relative `origin()` resolves.
      */
     public function workingDirectory(): string
     {
@@ -71,8 +65,8 @@ final readonly class BackupCommand implements Arrayable, Stringable
     }
 
     /**
-     * Get this command as an argument list, safe to hand directly to a process runner
-     * without shell interpretation of paths or options.
+     * The command as an argument list, so a process runner applies no shell interpretation
+     * to paths or options.
      *
      * @return list<string>
      */

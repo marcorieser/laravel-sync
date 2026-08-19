@@ -19,9 +19,8 @@ use Vitamin2\Sync\Rsync\RsyncOptions;
 final readonly class PendingSync
 {
     /**
-     * A backup only ever applies to a pull — normalized here (not just left to the
-     * caller) so `backup !== null` reliably implies a backup will run, regardless of
-     * which operation a caller constructs this with.
+     * A backup only ever applies to a pull. Normalized here so `backup !== null`
+     * reliably implies a backup will run, whatever the caller passed.
      */
     public ?Backup $backup;
 
@@ -80,10 +79,9 @@ final readonly class PendingSync
      * De-duplicated recipe path → union of excludes from every recipe containing it.
      * Not applied to backups() — a backup's BackupCommand is a fixed full copy.
      *
-     * Not keyed by path in a native array/Collection: a purely-numeric path (e.g.
-     * `"123"` in `releases/123/`) gets silently coerced to an int array key by PHP,
-     * crashing the `string $path`-typed closures above under strict_types. Each path
-     * is tracked as a value instead, found via strict `array_search(..., true)`.
+     * Paths are tracked as values, not array keys: PHP coerces a purely-numeric path
+     * (`"123"` in `releases/123/`) to an int key, crashing the `string`-typed closures
+     * above under strict_types.
      *
      * @return Collection<int, array{path: string, excludes: array<int, string>}>
      */
@@ -154,9 +152,8 @@ final readonly class PendingSync
     /**
      * Run the backup only, one process at a time.
      *
-     * Exposed separately from `run()` so a caller can report a backup failure
-     * distinctly from a sync failure — the two mean very different things for a
-     * feature whose purpose is protecting local files.
+     * Separate from `run()` so a caller can report a backup failure distinctly from a
+     * sync failure.
      *
      * @return bool Whether every backup command completed successfully.
      */

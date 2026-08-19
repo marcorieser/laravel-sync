@@ -29,16 +29,13 @@ trait ResolvesSyncInput
     use ResolvesRemote;
 
     /**
-     * Resolve the operation, remote, recipes, and rsync options for this run, and prepare the sync.
+     * Resolve the operation, remote, recipes, and rsync options, prompting for whatever is
+     * missing. Returns null (after a friendly error) when input references config that
+     * doesn't exist or trips a sync guard.
      *
-     * Prompts for anything missing when running interactively. Returns null (after printing
-     * a friendly error) when the given input references config that doesn't exist, or when
-     * the resolved operation and remote violate a sync guard (e.g. pushing to a read-only remote).
-     *
-     * Guards are run here as each of their inputs becomes available, so a violation fails
-     * before the next prompt instead of after it — by the time every value is known, they've
-     * all already passed, so this builds the `PendingSync` directly instead of going through
-     * `Sync::prepare()`, which would only re-run the same guards a second time.
+     * Guards run as each of their inputs becomes available, so a violation fails before the
+     * next prompt rather than after it — hence building the `PendingSync` directly instead of
+     * through `Sync::prepare()`, which would only re-run the same guards.
      */
     protected function resolvePendingSync(): ?PendingSync
     {
@@ -102,9 +99,8 @@ trait ResolvesSyncInput
                 );
         }
 
-        // A purely numeric recipe name (e.g. "2024") comes back as an int here, since PHP
-        // coerces numeric-string array keys to int wherever recipe names pass through an
-        // array key (config, `recipes()->keys()`, `multiselect()`'s selected values).
+        // A purely numeric recipe name (e.g. "2024") arrives as an int: PHP coerces numeric-string
+        // array keys wherever names pass through one (config, `recipes()->keys()`, `multiselect()`).
         $names = collect($names)->map(fn (mixed $name) => (string) $name)->values()->all();
 
         if ($names === []) {
@@ -115,12 +111,8 @@ trait ResolvesSyncInput
     }
 
     /**
-     * Resolve whether local files should be backed up before this run.
-     *
-     * Only ever applies to a real (non-dry) pull, since only a pull overwrites local
-     * files. `--backup` decides it outright; otherwise, when pulling interactively,
-     * confirm before the rsync-options prompt so it's asked up front — but only for
-     * commands that actually run something (see `promptsForBackupConfirmation()`), so
+     * Only a real (non-dry) pull overwrites local files, so only that can be backed up.
+     * The interactive confirm is additionally gated on `promptsForBackupConfirmation()`, so
      * a preview command never implies an action it doesn't take.
      */
     protected function resolveBackup(Operation $operation): bool
@@ -139,13 +131,9 @@ trait ResolvesSyncInput
     }
 
     /**
-     * Whether this command should interactively confirm a backup before assuming one.
-     *
-     * Defaults to `false`: most consumers of this trait (`sync:list`, `sync:commands`)
-     * only preview and never call `runBackup()`/`runSync()`, so asking would misleadingly
-     * imply an action is about to happen. `sync` is the exception — it runs what it
-     * resolves, so it overrides this to `true`. `--backup` still works explicitly either
-     * way; this only gates the interactive confirm.
+     * Defaults to `false`: `sync:list` and `sync:commands` only preview, so confirming a
+     * backup would imply an action they never take. `sync` overrides it. `--backup` works
+     * either way — this gates only the interactive confirm.
      */
     protected function promptsForBackupConfirmation(): bool
     {
@@ -180,8 +168,7 @@ trait ResolvesSyncInput
     }
 
     /**
-     * Move the config-default flags to the front of the options list, so they're
-     * easiest to spot (and already pre-checked) in the `multiselect()` prompt.
+     * Sorts the config-default flags to the front so they're easiest to spot in the prompt.
      *
      * @param  array<int, string>  $configDefaults
      * @return array<string, string>
@@ -195,12 +182,9 @@ trait ResolvesSyncInput
     }
 
     /**
-     * Filter the config-default flags down to what the `multiselect()` prompt's
-     * default selection should show.
-     *
-     * Must exclude exactly what `orderOptionsByDefault()` excludes from the choices
-     * themselves — a default referencing an option that isn't offered breaks the
-     * prompt when accepted as-is.
+     * The `multiselect()` prompt's default selection. Must exclude exactly what
+     * `orderOptionsByDefault()` excludes from the choices — a default referencing an option
+     * that isn't offered breaks the prompt when accepted as-is.
      *
      * @param  array<int, string>  $configDefaults
      * @return array<int, string>
@@ -214,14 +198,8 @@ trait ResolvesSyncInput
     }
 
     /**
-     * Whether a flag should be excluded from the rsync-options prompt entirely
-     * (both its choices and its default selection).
-     *
-     * When `$verbose` is true, `RsyncOptions::OUTPUT_PRODUCING` flags are excluded —
-     * `resolve()` force-adds them regardless of what's picked here, so leaving them
-     * pickable would let a user "uncheck" a flag that stays on anyway. Likewise, when
-     * `$backup` is true, `--backup` is excluded — `resolve()` strips it regardless,
-     * since the package's own backup pass already covers it.
+     * Hides flags that `RsyncOptions::resolve()` forces on or strips regardless of what's
+     * picked, so nobody can "uncheck" a flag that stays on anyway.
      */
     private function isExcludedFromOptionsPrompt(string $flag, bool $verbose, bool $backup): bool
     {

@@ -117,6 +117,15 @@ pull overwrites local files. Before the pull runs, the local files of the select
 sync's own rsync options); if that copy fails, the pull doesn't run. Pulling interactively without `--backup`
 prompts "Back up the local files before pulling?" before the rsync-options prompt.
 
+Two `sync` runs against the same remote cannot overlap. The second fails immediately with `Could not start a
+sync for "{remote}": another sync may already be running for it` rather than racing the first. This matters
+most when a scheduled task and a person can both trigger a sync — treat that error as "retry later", not as a
+misconfiguration. There is nothing to configure, and the lock is released when the run ends, including on
+failure or a declined confirmation prompt.
+
+The lock is keyed by the remote's resolved target (`host:port` plus `root`, or just `root` when local), not by
+its config name, so two config entries aliasing the same physical directory still block each other.
+
 ### 8. Preview before running (optional)
 
 - `php artisan sync:list {push|pull} {remote} {recipe...}` — table of origin, target, options, and port
@@ -124,7 +133,7 @@ prompts "Back up the local files before pulling?" before the rsync-options promp
 
 Neither of these two commands syncs anything; they only resolve and display.
 
-### 8. Clean up old backups (optional)
+### 9. Clean up old backups (optional)
 
 ```bash
 php artisan sync:backups-clean
@@ -141,7 +150,7 @@ error instead of deleting anything — there's no picker to fall back to. The co
 when running interactively, so `--no-interaction --all` (or `--keep`/`--older-than`, e.g. in a scheduled task)
 deletes immediately without needing `--force`. `--keep`/`--older-than` cannot be combined with `--all`.
 
-### 9. Test a remote's connection (optional)
+### 10. Test a remote's connection (optional)
 
 ```bash
 php artisan sync:test-connection {remote}
@@ -194,3 +203,4 @@ php artisan sync:test-connection production
 - do not document package internals (DTOs, the `Sync` service, `RsyncCommand`/`RsyncOptions`/`BackupCommand`/`BackupFolder` value objects) here; keep the skill focused on adoption in Laravel apps
 - do not suggest managing SSH keys, passwords, or host verification through this package — it relies entirely on the host machine's existing `ssh` setup
 - do not add a `push`/`pull` for a `read_only` remote as a documented workaround; it is a deliberate guard
+- do not retry or loop around the "another sync may already be running" error to force a sync through; it means a concurrent run holds the remote, and the correct response is to wait

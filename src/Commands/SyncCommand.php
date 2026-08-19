@@ -10,6 +10,7 @@ use Vitamin2\Sync\Commands\Concerns\ResolvesSyncInput;
 use Vitamin2\Sync\Data\Backup;
 use Vitamin2\Sync\Data\Recipe;
 use Vitamin2\Sync\Enums\Operation;
+use Vitamin2\Sync\Exceptions\SyncException;
 use Vitamin2\Sync\PendingSync;
 
 use function Laravel\Prompts\confirm;
@@ -19,9 +20,6 @@ class SyncCommand extends Command
     use ConfirmsUnlessSkipped;
     use ResolvesSyncInput;
 
-    /**
-     * The command signature.
-     */
     protected $signature = 'sync
         {operation? : The operation to perform (push or pull)}
         {remote? : The remote to sync with}
@@ -31,20 +29,33 @@ class SyncCommand extends Command
         {--D|dry : Perform a dry run of the sync}
         {--B|backup : Back up local files before a real pull}';
 
-    /**
-     * The command description.
-     */
     protected $description = 'Sync files and folders between environments via rsync';
 
-    /**
-     * Execute the console command.
-     */
     public function handle(): int
     {
         if (! ($pending = $this->resolvePendingSync()) instanceof PendingSync) {
             return self::FAILURE;
         }
 
+        $lock = $this->syncService()->lock($pending->remote);
+
+        try {
+            if (! $lock->acquire()) {
+                throw SyncException::lockUnavailable($pending->remote->name);
+            }
+
+            return $this->runPending($pending);
+        } catch (SyncException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function runPending(PendingSync $pending): int
+    {
         $dry = (bool) $this->option('dry');
 
         if (! $this->confirmUnlessSkipped($dry, fn () => $this->confirmSync($pending))) {
@@ -78,8 +89,7 @@ class SyncCommand extends Command
     }
 
     /**
-     * `sync` is the one command that actually runs the backup it confirms, so it
-     * overrides the trait's `false` default.
+     * `sync` actually runs the backup it confirms, unlike the preview commands.
      */
     protected function promptsForBackupConfirmation(): bool
     {

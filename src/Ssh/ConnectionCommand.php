@@ -14,10 +14,9 @@ use Vitamin2\Sync\Data\Remote;
 final readonly class ConnectionCommand implements Stringable
 {
     /**
-     * Fail fast instead of hanging: `BatchMode=yes` disables interactive/password auth
-     * entirely (agent/key auth only, matching how every other command in this package
-     * connects), and `ConnectTimeout=5` bounds how long the initial handshake itself is
-     * allowed to take.
+     * Fail fast instead of hanging: `BatchMode=yes` rules out an interactive password
+     * prompt (agent/key auth only, like every other command here), `ConnectTimeout=5`
+     * bounds the handshake.
      */
     private const array SSH_OPTIONS = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5'];
 
@@ -31,13 +30,11 @@ final readonly class ConnectionCommand implements Stringable
     }
 
     /**
-     * Get this command as an argument list, safe to hand directly to a process runner
-     * without shell interpretation of paths or options.
+     * The command as an argument list, so a process runner applies no shell interpretation
+     * to paths or options.
      *
-     * Checks that `root` actually exists on the remote in the same round trip as the
-     * auth check itself (`test -d`, run by the *remote* shell via the trailing command
-     * argument) — the failure this command exists to catch early is as much a
-     * misconfigured `root` as a broken SSH connection.
+     * The trailing `test -d` runs on the *remote* shell, so one round trip catches a
+     * misconfigured `root` as well as a broken connection.
      *
      * @return list<string>
      */
@@ -53,9 +50,8 @@ final readonly class ConnectionCommand implements Stringable
     }
 
     /**
-     * `Remote::fromArray()` normalizes root by `rtrim`ming trailing `/`, which turns a
-     * configured root of `/` into `''` — fall back to `/` here so the remote-filesystem
-     * root still resolves to a real, checkable path.
+     * `Remote::fromArray()` rtrims trailing slashes, turning a configured root of `/` into
+     * `''`; restore it so a filesystem-root remote stays a checkable path.
      */
     private function root(): string
     {
@@ -63,10 +59,8 @@ final readonly class ConnectionCommand implements Stringable
     }
 
     /**
-     * Single-quote a path for the *remote* POSIX shell that runs the trailing `ssh`
-     * command argument — a local `escapeshellarg()` targets the control machine's own
-     * shell (and its quoting rules on Windows don't even match POSIX), not the one this
-     * string is actually interpreted by.
+     * Single-quote a path for the *remote* POSIX shell, not `escapeshellarg()`: that escapes
+     * for the control machine's shell, whose Windows quoting rules aren't even POSIX.
      */
     private function escapeRemotePath(string $path): string
     {

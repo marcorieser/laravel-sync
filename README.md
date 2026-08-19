@@ -26,6 +26,7 @@ A git-like artisan command to easily sync files and folders between environments
 - [Usage](#usage)
   - [Cleaning Up Backups](#cleaning-up-backups)
   - [Testing a Connection](#testing-a-connection)
+  - [Concurrency](#concurrency)
 - [Examples](#examples)
 - [Changelog](#changelog)
 - [Contributing](#contributing)
@@ -257,6 +258,11 @@ everything instead of nothing.
 syncing anything — useful for catching a misconfigured remote (or a broken SSH setup) before a real sync fails
 partway through with an opaque `rsync` error. A local remote (no `user`/`host`) reports success immediately,
 without opening any connection.
+
+### Concurrency
+
+Two `sync` runs against the same remote can't overlap — the second fails immediately rather than racing the
+first. Nothing to configure; the lock always releases when the run ends.
 
 ## Examples
 

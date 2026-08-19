@@ -8,17 +8,16 @@ use Closure;
 use Illuminate\Console\Command;
 
 /**
- * Shared "confirm before a destructive action, unless skipped" gate for the sync
- * commands that actually run something (`sync`, `sync:backups-clean`).
+ * Shared "confirm before a destructive action, unless skipped" gate for `sync` and
+ * `sync:backups-clean`.
  *
  * @mixin Command
  */
 trait ConfirmsUnlessSkipped
 {
     /**
-     * Ask for confirmation unless `$skip` is true or the command isn't running
-     * interactively. `$confirm` is only invoked when a prompt is actually needed, since
-     * `Laravel\Prompts\confirm()` has the side effect of printing the question.
+     * `$confirm` is a closure so it runs only when a prompt is actually needed —
+     * `Laravel\Prompts\confirm()` prints the question as a side effect.
      *
      * @param  Closure(): bool  $confirm
      */

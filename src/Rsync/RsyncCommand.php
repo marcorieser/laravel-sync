@@ -21,9 +21,6 @@ final readonly class RsyncCommand implements Arrayable, Stringable
         public RsyncOptions $options,
     ) {}
 
-    /**
-     * Get the source path, based on the operation.
-     */
     public function origin(): string
     {
         return $this->operation === Operation::Pull
@@ -31,9 +28,6 @@ final readonly class RsyncCommand implements Arrayable, Stringable
             : $this->localPath();
     }
 
-    /**
-     * Get the destination path, based on the operation.
-     */
     public function target(): string
     {
         return $this->operation === Operation::Pull
@@ -49,8 +43,8 @@ final readonly class RsyncCommand implements Arrayable, Stringable
     }
 
     /**
-     * Get this command as an argument list, safe to hand directly to a process runner
-     * without shell interpretation of paths or options.
+     * The command as an argument list, so a process runner applies no shell interpretation
+     * to paths or options.
      *
      * @return list<string>
      */
@@ -86,7 +80,7 @@ final readonly class RsyncCommand implements Arrayable, Stringable
     }
 
     /**
-     * The `ssh` command used for the `-e` flag, connecting on the remote's port.
+     * The `ssh` command rsync's `-e` flag runs, carrying the remote's port.
      */
     private function sshFlag(): string
     {

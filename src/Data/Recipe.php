@@ -17,11 +17,10 @@ final readonly class Recipe
     ) {}
 
     /**
-     * Hydrate a recipe from its raw config array, plus this recipe's own excludes —
-     * looked up by `Sync::recipes()` from the separate `sync.excludes` config key
-     * (keyed by recipe name), not from `$paths` itself, so `recipes` stays the plain
-     * `array<string, array<int, string>>` shape `aerni/sync` config compatibility
-     * requires.
+     * Hydrate a recipe from its raw config array.
+     *
+     * Excludes arrive separately, looked up by `Sync::recipes()` from the `sync.excludes`
+     * config key, so `recipes` keeps the flat shape `aerni/sync` config compatibility requires.
      *
      * @param  array<int, string>  $paths
      * @param  array<int, string>  $excludes

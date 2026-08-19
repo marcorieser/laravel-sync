@@ -31,15 +31,18 @@ Keep the package's bundled Boost skill accurate, concise, and focused on helping
 
 ## References
 
-- `resources/boost/skills/`
-- `src/*ServiceProvider.php`
-- `src/Facades/`
-- `src/Console/Commands/`
-- `config/*.php`
-- `routes/*.php`
-- `database/migrations/`
+- `resources/boost/skills/laravel-sync-development/SKILL.md`
+- `src/SyncServiceProvider.php`
+- `src/Facades/Sync.php`
+- `src/Commands/`
+- `config/sync.php`
 - `README.md`
+- `CHANGELOG.md`
 - `tests/Feature/` and `tests/Unit/`
+
+The package's consumer surface is its config file and five Artisan commands (`sync`,
+`sync:list`, `sync:commands`, `sync:backups-clean`, `sync:test-connection`) plus the `Sync`
+facade. There are no routes, migrations, views, or events to document.
 
 ## Examples
 

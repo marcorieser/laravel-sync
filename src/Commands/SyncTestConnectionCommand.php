@@ -12,37 +12,25 @@ use Vitamin2\Sync\Exceptions\SyncException;
 use Vitamin2\Sync\Ssh\ConnectionCommand;
 
 /**
- * Uses `ResolvesRemote`, not the full `ResolvesSyncInput` — this command resolves only a
- * remote, none of the operation/recipes/rsync-option shape that trait is built around
- * (and Larastan checks a trait's option/argument references against each using command's
- * own `$signature`, so mixing in the whole thing here would fail analysis over options
- * this command doesn't have).
+ * Uses `ResolvesRemote`, not the full `ResolvesSyncInput`: this command resolves only a
+ * remote, and Larastan checks a trait's option references against each using command's own
+ * `$signature`, so the full trait would fail analysis over options declared here.
  */
 class SyncTestConnectionCommand extends Command
 {
     use ResolvesRemote;
 
     /**
-     * Bounds the whole SSH round trip, on top of `ConnectionCommand`'s own
-     * `ConnectTimeout` — a safety net against the remote command itself hanging once
-     * connected.
+     * Bounds the whole SSH round trip, on top of `ConnectionCommand`'s own `ConnectTimeout`,
+     * in case the remote command hangs once connected.
      */
     private const int TIMEOUT_SECONDS = 10;
 
-    /**
-     * The command signature.
-     */
     protected $signature = 'sync:test-connection
         {remote? : The remote to test}';
 
-    /**
-     * The command description.
-     */
     protected $description = 'Test the SSH connection (and root path) for a remote';
 
-    /**
-     * Execute the console command.
-     */
     public function handle(): int
     {
         try {
@@ -85,10 +73,8 @@ class SyncTestConnectionCommand extends Command
             $remote->root,
         ));
 
-        // A separate `line()` call, not appended to the `error()` message above: Laravel's
-        // command-testing assertions (`expectsOutputToContain()`) match against individual
-        // output writes, and a single write's embedded newline isn't reliably matched as
-        // two separate lines.
+        // A separate `line()`, not appended to the `error()` above: Laravel's output assertions
+        // match individual writes, so an embedded newline isn't matched as two lines.
         if (($errorOutput = trim($result->errorOutput())) !== '') {
             $this->line($errorOutput);
         }
