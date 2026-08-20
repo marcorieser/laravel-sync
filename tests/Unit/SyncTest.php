@@ -259,8 +259,8 @@ it('refuses a recipe\'s excludes-from file whose path contains a ".." segment', 
     $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 })->throws(SyncException::class, 'must not contain ".." segments')->with([
     'escaping the project' => '../../etc/.rsync-excludes',
-    // Refused too: rsync gets the path verbatim, so a ".." after a symlinked segment would
-    // read a file the guard never validated.
+    // Refused too: containment isn't the point (a symlink out of the project is allowed),
+    // but a ".." in a hand-written config path is almost always a typo.
     'staying inside the project' => 'storage/app/../.rsync-excludes',
 ]);
 
