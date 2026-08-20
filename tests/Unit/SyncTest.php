@@ -282,7 +282,11 @@ it('allows a recipe\'s excludes-from file configured as an absolute path', funct
         $sync = resolve(Sync::class);
         $pending = $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 
-        expect($pending->commands()->first()->toArgs())->toContain("--exclude-from={$file}");
+        // Separator-normalized, since storage_path() yields backslashes on Windows — rsync
+        // and PHP both accept "/" there, so the flag carries the normalized form.
+        $expected = str_replace('\\', '/', $file);
+
+        expect($pending->commands()->first()->toArgs())->toContain("--exclude-from={$expected}");
     } finally {
         File::delete($file);
     }
