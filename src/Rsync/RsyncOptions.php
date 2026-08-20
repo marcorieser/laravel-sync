@@ -178,20 +178,19 @@ final readonly class RsyncOptions implements Stringable
     }
 
     /**
-     * Return a copy of these options with a `--exclude-from=FILE` flag appended per file,
-     * resolved to an absolute path: `rsync` reads an exclude-from file from the local
-     * machine whatever the direction, and a plain sync isn't guaranteed to run from the
-     * project root (unlike the backup pass in `BackupCommand`).
+     * Return a copy of these options with a `--exclude-from=FILE` flag appended per file.
      *
-     * Paths arrive `/`-normalized from `Recipe::fromArray()`; don't collapse ".." here to
-     * match the guard either — it refuses ".." outright, and collapsing would diverge from
-     * the kernel's segment-by-segment resolution through a symlink.
+     * Paths must already be absolute (`Sync::resolveExcludesFromPath()`): `rsync` reads an
+     * exclude-from file from the local machine whatever the direction, and a plain sync
+     * isn't guaranteed to run from the project root, unlike the backup pass in
+     * `BackupCommand`. Resolving here instead would put that rule in a second place, and
+     * the guard could then validate a file this flag never points at.
      *
      * @param  array<int, string>  $paths
      */
     public function withExcludeFrom(array $paths): self
     {
-        return $this->withFlags(array_map(fn (string $path) => '--exclude-from='.base_path($path), $paths));
+        return $this->withFlags(array_map(fn (string $path) => "--exclude-from={$path}", $paths));
     }
 
     /**

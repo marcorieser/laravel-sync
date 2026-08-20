@@ -198,9 +198,10 @@ Combines with `excludes` rather than replacing it. A configured file that doesn'
 fast with a friendly error before anything is synced — checked only for the recipe(s) actually
 being synced, not every recipe defined in your config.
 
-Each path must be relative to your project's root — an absolute path is refused with the same
-up-front error. It need not stay inside the project, though: a `..` segment or a symlink pointing
-out both resolve as written, so a sibling checkout or a shared `storage` can hold the list.
+A relative path is resolved from your project's root; an absolute one is used as written, so
+`storage_path('app/.rsync-excludes')` works as you'd expect. The file need not sit inside the
+project either — a `..` segment or a symlink pointing out both resolve as written, so a sibling
+checkout or a shared `storage` can hold the list.
 
 ### Backup Directory
 

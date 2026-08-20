@@ -204,7 +204,7 @@ class Sync
     {
         $normalized = str_replace('\\', '/', trim($dir));
 
-        if ($this->isAbsolutePath($normalized)) {
+        if (self::isAbsolutePath($normalized)) {
             throw SyncException::backupDirUnsafe($dir);
         }
 
@@ -298,11 +298,27 @@ class Sync
 
     /**
      * Whether an already-`/`-normalized path is absolute — a leading separator, or a Windows
-     * drive letter, which `base_path()` would otherwise silently rebase under the project.
+     * drive letter.
      */
-    private function isAbsolutePath(string $normalized): bool
+    private static function isAbsolutePath(string $normalized): bool
     {
         return $normalized !== '' && ($normalized[0] === '/' || preg_match('#^[A-Za-z]:#', $normalized) === 1);
+    }
+
+    /**
+     * Resolve a configured `excludes_from` entry to the absolute path `rsync` will read.
+     *
+     * An absolute entry is taken as written — `storage_path('app/.rsync-excludes')` in the
+     * config is idiomatic, and `base_path()` would silently rebase it under the project root
+     * (see `join_paths()`, which `ltrim()`s the leading separator) into a nonexistent path.
+     *
+     * The single owner of this rule: `guardExcludesFromFilesExist()` validates what it
+     * returns and `PendingSync` builds the `--exclude-from=` flag from it, so the file
+     * checked is always the file read.
+     */
+    public static function resolveExcludesFromPath(string $path): string
+    {
+        return self::isAbsolutePath($path) ? $path : base_path($path);
     }
 
     /**
@@ -471,14 +487,11 @@ class Sync
      * `rsync` would otherwise fail mid-transfer with a much rawer error. Recipes outside this
      * run aren't checked, so a broken path elsewhere in the config doesn't block it.
      *
-     * Absolute paths are refused because `base_path()` silently `ltrim()`s the leading
-     * separator and rebases them under the project root (see `join_paths()`), so the file
-     * read would not be the one configured.
-     *
-     * Nothing here confines the file to the project: a ".." and a symlink pointing out both
-     * resolve as written, so a sibling checkout or a shared `storage` can hold the list. The
-     * `--exclude-from=` flag is built from this same string, so whatever this validates is
-     * what `rsync` reads — and `-O` already passes arbitrary rsync flags anyway.
+     * Nothing here confines the file to the project: an absolute path, a "..", and a symlink
+     * pointing out all resolve as written, so a sibling checkout or a shared `storage` can
+     * hold the list. `resolveExcludesFromPath()` is what both this guard and the
+     * `--exclude-from=` flag resolve through, so whatever is validated here is what `rsync`
+     * reads — and `-O` already passes arbitrary rsync flags anyway.
      *
      * `File::isFile()`, not `File::exists()`: the latter also passes for a directory, and
      * for a blank entry, since `base_path('')` is the project root.
@@ -489,11 +502,7 @@ class Sync
     {
         foreach ($recipes as $recipe) {
             foreach ($recipe->excludesFrom as $path) {
-                if ($this->isAbsolutePath($path)) {
-                    throw SyncException::excludesFromFileAbsolute($recipe->name, $path);
-                }
-
-                if (! File::isFile(base_path($path))) {
+                if (! File::isFile(self::resolveExcludesFromPath($path))) {
                     throw SyncException::excludesFromFileMissing($recipe->name, $path);
                 }
             }

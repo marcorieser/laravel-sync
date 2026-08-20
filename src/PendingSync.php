@@ -51,7 +51,9 @@ final readonly class PendingSync
                 $this->operation,
                 $this->remote,
                 $entry['path'],
-                $this->options->withExcludes($entry['excludes'])->withExcludeFrom($entry['excludesFrom']),
+                $this->options
+                    ->withExcludes($entry['excludes'])
+                    ->withExcludeFrom(array_map(Sync::resolveExcludesFromPath(...), $entry['excludesFrom'])),
             ));
     }
 

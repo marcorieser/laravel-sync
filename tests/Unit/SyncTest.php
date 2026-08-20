@@ -269,15 +269,34 @@ it('allows a recipe\'s excludes-from file reached through a ".." segment', funct
     }
 });
 
-it('refuses a recipe\'s excludes-from file whose path is absolute', function () {
-    config(['sync.excludes_from' => ['assets' => ['/etc/.rsync-excludes']]]);
+it('allows a recipe\'s excludes-from file configured as an absolute path', function () {
+    // `storage_path('app/.rsync-excludes')` in the config is idiomatic Laravel, and
+    // `base_path()` would silently rebase it into a nonexistent path.
+    $file = storage_path('app/.rsync-excludes-'.Str::random(8));
+    File::ensureDirectoryExists(storage_path('app'));
+    File::put($file, '*.log');
+
+    config(['sync.excludes_from' => ['assets' => [$file]]]);
+
+    try {
+        $sync = resolve(Sync::class);
+        $pending = $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+
+        expect($pending->commands()->first()->toArgs())->toContain("--exclude-from={$file}");
+    } finally {
+        File::delete($file);
+    }
+});
+
+it('reports an absolute excludes-from file that does not exist without rebasing it', function () {
+    config(['sync.excludes_from' => ['assets' => ['/etc/.rsync-excludes-missing']]]);
 
     $sync = resolve(Sync::class);
 
     $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
 })->throws(
     SyncException::class,
-    'The excludes_from file "/etc/.rsync-excludes" configured for recipe "assets" must be relative to your project root, not an absolute path.',
+    'The excludes_from file "/etc/.rsync-excludes-missing" configured for recipe "assets" does not exist.',
 );
 
 it('only checks excludes-from files for the recipes being synced, not every configured recipe', function () {

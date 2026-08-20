@@ -97,10 +97,11 @@ one synced recipe gets the union of every one of those recipes' excludes.
 ],
 ```
 
-Keyed by recipe name. Each entry is a file path, relative to the app's root, containing rsync exclude patterns
-(one per line) — applied via `rsync --exclude-from` alongside (not instead of) `excludes` above. A configured
-file that doesn't exist, or that is absolute, fails fast with a clear error before anything is synced. The path
-need not stay inside the project — a `..` segment or a symlink pointing out both resolve as written.
+Keyed by recipe name. Each entry is a file path containing rsync exclude patterns (one per line) — applied via
+`rsync --exclude-from` alongside (not instead of) `excludes` above. A relative path is resolved from the app's
+root; an absolute one (e.g. `storage_path('app/.rsync-excludes')`) is used as written. The file need not sit
+inside the project. A configured file that doesn't exist fails fast with a clear error before anything is
+synced.
 
 ### 7. Set the backup directory (optional)
 
