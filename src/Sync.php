@@ -140,14 +140,12 @@ class Sync
     }
 
     /**
-     * Delete a single backup folder from disk, reporting whether it actually succeeded.
+     * Delete a single backup folder, reporting whether it actually succeeded.
      *
-     * Re-checks `is_link()` despite `backups()` already filtering symlinks: the interactive
-     * prompts in `sync:backups-clean` leave a user-paced window in which the folder could
-     * be swapped for a symlink, which `File::deleteDirectory()` would follow.
-     *
-     * Its return value isn't trustworthy either — it reports success whenever the top-level
-     * directory existed, even if files inside failed to delete. Only re-checking is reliable.
+     * `is_link()` is re-checked despite `backups()` filtering symlinks: `sync:backups-clean`'s
+     * prompts leave a window to swap the folder for one, which `File::deleteDirectory()` would
+     * follow. Its return value only reports that the top-level directory existed, so the
+     * delete is verified by re-checking.
      */
     public function deleteBackup(BackupFolder $folder): bool
     {
@@ -191,12 +189,11 @@ class Sync
      * Takes the directory explicitly rather than reading `$this->backupDir()`, since
      * `prepare()` validates a specific `Backup`'s own `dir`.
      *
-     * Checks lexically first (no filesystem access, so it works before the directory
-     * exists), refusing blank, absolute, root-resolving, or root-escaping paths. Absolute
-     * is refused explicitly because the segment parser would otherwise drop the leading
-     * "/" and misread "/tmp" as relative "tmp". Then, if the directory or a parent exists,
-     * resolves symlinks and refuses one leading outside the project — a lexical check
-     * can't catch a contained-looking path that is really a symlink elsewhere.
+     * Lexical checks first, so they work before the directory exists: blank, absolute,
+     * root-resolving and root-escaping paths are refused. Absolute needs its own check —
+     * the segment parser would drop the leading "/" and read "/tmp" as relative "tmp".
+     * Then, where the directory or a parent exists, symlinks are resolved and one leading
+     * outside the project refused, which no lexical check can catch.
      *
      * Returns the dot-collapsed path it validated, so callers use exactly what was checked.
      */
@@ -306,10 +303,9 @@ class Sync
     }
 
     /**
-     * Resolve a configured `excludes_from` entry to the absolute path `rsync` reads. An
-     * absolute entry is taken as written — `base_path()` would rebase it under the project
-     * root, since `join_paths()` `ltrim()`s the leading separator. The guard and the
-     * `--exclude-from=` flag both resolve through here, so the file validated is the file read.
+     * Resolve a configured `excludes_from` entry to the absolute path `rsync` reads, for both
+     * the guard and the `--exclude-from=` flag. An absolute entry is taken as written:
+     * `base_path()` would rebase it, since `join_paths()` `ltrim()`s the leading separator.
      */
     public static function resolveExcludesFromPath(string $path): string
     {
@@ -395,16 +391,14 @@ class Sync
     /**
      * Get the concurrency guard for a remote.
      *
-     * Keyed by the remote's physical target (`host:port` plus `root`, or just `root` when
-     * local) rather than its config name or SSH `user`, so aliased entries pointing at the
-     * same directory contend for the same lock — the race being guarded is two `rsync`
-     * processes writing one path, which `user` has no bearing on.
+     * Keyed by the remote's physical target (`host:port` plus `root`, or `root` alone when
+     * local), not its config name or SSH `user`: the race guarded is two `rsync` processes
+     * writing one path, so aliases of the same directory must contend for one lock.
      *
      * The identity is canonicalized (dot segments, duplicate slashes, case) before hashing,
-     * so aliases differing only cosmetically still collide. Case-folding deliberately
-     * over-locks two case-differing paths on a case-sensitive filesystem rather than risk
-     * missing a real race on a case-insensitive one. `xxh128` because the arch preset
-     * rejects `md5` as a weak hash, though this is only a filename.
+     * so cosmetic differences still collide. Case-folding over-locks two case-differing paths
+     * on a case-sensitive filesystem, preferred to missing a real race on a case-insensitive
+     * one. `xxh128` because the arch preset rejects `md5`, though this is only a filename.
      */
     public function lock(Remote $remote): SyncLock
     {
@@ -478,18 +472,12 @@ class Sync
     }
 
     /**
-     * Guard that every `excludes_from` file configured for the recipes being synced exists —
-     * `rsync` would otherwise fail mid-transfer with a much rawer error. Recipes outside this
-     * run aren't checked, so a broken path elsewhere in the config doesn't block it.
+     * Fail fast on a missing `excludes_from` file, rather than letting `rsync` fail
+     * mid-transfer with a rawer error. Only the recipes being synced are checked.
      *
-     * Nothing here confines the file to the project: an absolute path, a "..", and a symlink
-     * pointing out all resolve as written, so a sibling checkout or a shared `storage` can
-     * hold the list. `resolveExcludesFromPath()` is what both this guard and the
-     * `--exclude-from=` flag resolve through, so whatever is validated here is what `rsync`
-     * reads — and `-O` already passes arbitrary rsync flags anyway.
-     *
-     * `File::isFile()`, not `File::exists()`: the latter also passes for a directory, and
-     * for a blank entry, since `base_path('')` is the project root.
+     * Containment is deliberately not enforced: an absolute path, a "..", or a symlink out
+     * all resolve as written. `File::isFile()`, not `File::exists()` — the latter also passes
+     * for a directory, and for `base_path('')`.
      *
      * @param  Collection<int, Recipe>  $recipes
      */
@@ -560,11 +548,9 @@ class Sync
     }
 
     /**
-     * Normalize a path for cross-platform, case-insensitive-filesystem-safe comparison.
-     *
-     * Both sides need it: on Windows a local remote's `root` carries backslashes that
-     * `Remote::path()` doesn't normalize. Case is folded because macOS and Windows are
-     * case-insensitive by default, so two paths differing only by case are one directory.
+     * Normalize a path for comparison. Both sides need it: on Windows a local remote's `root`
+     * carries backslashes `Remote::path()` leaves alone. Case is folded because two paths
+     * differing only by case are one directory on macOS and Windows.
      */
     private function normalizePath(string $path): string
     {

@@ -34,11 +34,8 @@ final readonly class Recipe
     }
 
     /**
-     * Hydrate a recipe from its raw config array.
-     *
-     * Excludes and excludes-from files arrive separately, looked up by `Sync::recipes()` from the
-     * `sync.excludes`/`sync.excludes_from` config keys, so `recipes` keeps the flat shape
-     * `aerni/sync` config compatibility requires.
+     * Excludes and excludes-from files arrive separately, from the `sync.excludes`/
+     * `sync.excludes_from` keys, so `recipes` keeps the flat shape `aerni/sync` requires.
      *
      * @param  array<int, string>  $paths
      * @param  array<int, string>  $excludes
