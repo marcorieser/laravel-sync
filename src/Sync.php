@@ -306,15 +306,10 @@ class Sync
     }
 
     /**
-     * Resolve a configured `excludes_from` entry to the absolute path `rsync` will read.
-     *
-     * An absolute entry is taken as written — `storage_path('app/.rsync-excludes')` in the
-     * config is idiomatic, and `base_path()` would silently rebase it under the project root
-     * (see `join_paths()`, which `ltrim()`s the leading separator) into a nonexistent path.
-     *
-     * The single owner of this rule: `guardExcludesFromFilesExist()` validates what it
-     * returns and `PendingSync` builds the `--exclude-from=` flag from it, so the file
-     * checked is always the file read.
+     * Resolve a configured `excludes_from` entry to the absolute path `rsync` reads. An
+     * absolute entry is taken as written — `base_path()` would rebase it under the project
+     * root, since `join_paths()` `ltrim()`s the leading separator. The guard and the
+     * `--exclude-from=` flag both resolve through here, so the file validated is the file read.
      */
     public static function resolveExcludesFromPath(string $path): string
     {
