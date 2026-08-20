@@ -251,18 +251,23 @@ it('refuses to prepare a sync when a recipe\'s excludes-from file does not exist
     'The excludes_from file "storage/app/.rsync-excludes-missing" configured for recipe "assets" does not exist.',
 );
 
-it('refuses a recipe\'s excludes-from file whose path contains a ".." segment', function (string $path) {
-    config(['sync.excludes_from' => ['assets' => [$path]]]);
+it('allows a recipe\'s excludes-from file reached through a ".." segment', function () {
+    // Deliberately not confined to the project: a sibling checkout in a monorepo is a
+    // legitimate place to keep a shared exclude list.
+    $name = '.rsync-excludes-'.Str::random(8);
+    File::put(dirname(base_path()).'/'.$name, '*.log');
 
-    $sync = resolve(Sync::class);
+    config(['sync.excludes_from' => ['assets' => ['../'.$name]]]);
 
-    $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
-})->throws(SyncException::class, 'must not contain ".." segments')->with([
-    'escaping the project' => '../../etc/.rsync-excludes',
-    // Refused too: containment isn't the point (a symlink out of the project is allowed),
-    // but a ".." in a hand-written config path is almost always a typo.
-    'staying inside the project' => 'storage/app/../.rsync-excludes',
-]);
+    try {
+        $sync = resolve(Sync::class);
+        $pending = $sync->prepare(Operation::Push, $sync->remote('staging'), collect([$sync->recipe('assets')]), new RsyncOptions([]));
+
+        expect($pending)->toBeInstanceOf(PendingSync::class);
+    } finally {
+        File::delete(dirname(base_path()).'/'.$name);
+    }
+});
 
 it('refuses a recipe\'s excludes-from file whose path is absolute', function () {
     config(['sync.excludes_from' => ['assets' => ['/etc/.rsync-excludes']]]);

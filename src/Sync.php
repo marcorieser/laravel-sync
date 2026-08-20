@@ -473,12 +473,12 @@ class Sync
      *
      * Absolute paths are refused because `base_path()` silently `ltrim()`s the leading
      * separator and rebases them under the project root (see `join_paths()`), so the file
-     * read would not be the one configured. A ".." is refused as a likely typo — nothing
-     * downstream needs it collapsed, since the flag is built from this same string.
+     * read would not be the one configured.
      *
-     * A symlink out of the project is deliberately allowed, unlike a "..": a shared `storage`
-     * is standard on Envoyer-style deploys, and `-O` already passes arbitrary rsync flags,
-     * so real containment is neither achievable here nor worth breaking those layouts for.
+     * Nothing here confines the file to the project: a ".." and a symlink pointing out both
+     * resolve as written, so a sibling checkout or a shared `storage` can hold the list. The
+     * `--exclude-from=` flag is built from this same string, so whatever this validates is
+     * what `rsync` reads — and `-O` already passes arbitrary rsync flags anyway.
      *
      * `File::isFile()`, not `File::exists()`: the latter also passes for a directory, and
      * for a blank entry, since `base_path('')` is the project root.
@@ -491,10 +491,6 @@ class Sync
             foreach ($recipe->excludesFrom as $path) {
                 if ($this->isAbsolutePath($path)) {
                     throw SyncException::excludesFromFileAbsolute($recipe->name, $path);
-                }
-
-                if (in_array('..', explode('/', $path), true)) {
-                    throw SyncException::excludesFromFileTraversal($recipe->name, $path);
                 }
 
                 if (! File::isFile(base_path($path))) {

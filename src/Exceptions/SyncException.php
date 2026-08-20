@@ -188,17 +188,4 @@ class SyncException extends RuntimeException
             $recipe,
         ));
     }
-
-    /**
-     * A recipe's configured `excludes_from` path contains a ".." segment — refused whether
-     * or not it escapes the project.
-     */
-    public static function excludesFromFileTraversal(string $recipe, string $path): self
-    {
-        return new self(sprintf(
-            'The excludes_from file "%s" configured for recipe "%s" must not contain ".." segments. Use a path relative to your project root.',
-            $path,
-            $recipe,
-        ));
-    }
 }
